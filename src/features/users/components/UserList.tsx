@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useUsers, useDeleteUser } from '../hooks/useUsers';
 import { UserForm } from './UserForm';
 import { User, UserRole } from '../../../types/auth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export const UserList = () => {
   const { data: users, isLoading, error } = useUsers();
   const { mutate: deleteUser } = useDeleteUser();
+  const { user: currentUser } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -155,6 +157,8 @@ export const UserList = () => {
                           fontSize: '0.875rem',
                         }}
                         onClick={() => handleDelete(user.id, user.name)}
+                        disabled={currentUser?.id === user.id}
+                        title={currentUser?.id === user.id ? 'You cannot delete your own account' : ''}
                       >
                         Delete
                       </button>

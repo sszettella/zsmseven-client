@@ -99,7 +99,7 @@ export const PortfolioDetail = () => {
                         style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this trade?')) {
-                            deleteTrade(trade.id);
+                            deleteTrade({ tradeId: trade.id });
                           }
                         }}
                       >

@@ -39,9 +39,15 @@ apiClient.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      localStorage.removeItem(TOKEN_KEY);
-      window.location.href = '/login';
+      // Only redirect to login if it's NOT a login or register attempt
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login') ||
+                             error.config?.url?.includes('/auth/register');
+
+      if (!isAuthEndpoint) {
+        // Handle unauthorized - redirect to login
+        localStorage.removeItem(TOKEN_KEY);
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

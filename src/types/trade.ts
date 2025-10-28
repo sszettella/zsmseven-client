@@ -12,7 +12,7 @@ export enum OptionType {
 
 export interface OptionTrade {
   id: string;
-  portfolioId: string;
+  portfolioId?: string; // Optional - for standalone trades
   userId: string;
 
   // Trade details
@@ -38,6 +38,7 @@ export interface OptionTrade {
 }
 
 export interface CreateTradeData {
+  portfolioId?: string; // Optional - for standalone trades
   symbol: string;
   action: OptionAction;
   optionType: OptionType;
@@ -51,6 +52,7 @@ export interface CreateTradeData {
 }
 
 export interface UpdateTradeData {
+  portfolioId?: string | null; // Can be updated or set to null
   symbol?: string;
   action?: OptionAction;
   optionType?: OptionType;

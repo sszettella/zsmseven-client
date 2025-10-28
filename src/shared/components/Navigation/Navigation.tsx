@@ -19,11 +19,17 @@ export const Navigation = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
             <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#333' }}>
-              Financial Tracker
+              ZSM Seven
             </Link>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <Link to="/portfolios" style={{ textDecoration: 'none', color: '#666' }}>
                 Portfolios
+              </Link>
+              <Link to="/trades/new" style={{ textDecoration: 'none', color: '#666' }}>
+                New Trade
+              </Link>
+              <Link to="/trades" style={{ textDecoration: 'none', color: '#666' }}>
+                All Trades
               </Link>
               {isAdmin && (
                 <Link to="/admin/users" style={{ textDecoration: 'none', color: '#666' }}>
@@ -33,7 +39,16 @@ export const Navigation = () => {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ color: '#666' }}>{user?.name}</span>
+            <Link
+              to="/profile"
+              style={{
+                color: '#666',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {user?.name}
+            </Link>
             <button onClick={() => logout()} className="btn btn-secondary">
               Logout
             </button>

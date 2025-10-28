@@ -1,8 +1,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useEffect } from 'react';
 import { useCreateUser, useUpdateUser, useUser } from '../hooks/useUsers';
 import { UserRole } from '../../../types/auth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
@@ -27,19 +29,37 @@ export const UserForm = ({ userId, onSuccess, onCancel }: UserFormProps) => {
   const { data: user } = useUser(userId || '');
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
+  const { user: currentUser } = useAuth();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
-    defaultValues: user
-      ? { name: user.name, email: user.email, role: user.role, password: '' }
-      : { role: UserRole.USER, name: '', email: '', password: '' },
+    defaultValues: {
+      role: UserRole.USER,
+      name: '',
+      email: '',
+      password: '',
+    },
   });
 
+  // Prefill form values when user data is loaded in edit mode
+  useEffect(() => {
+    if (user) {
+      reset({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        password: '',
+      });
+    }
+  }, [user, reset]);
+
   const isPending = isCreating || isUpdating;
+  const isEditingSelf = !!(userId && currentUser?.id === userId);
 
   const onSubmit = (data: UserFormData) => {
     if (userId && user) {
@@ -47,8 +67,12 @@ export const UserForm = ({ userId, onSuccess, onCancel }: UserFormProps) => {
       const updateData: any = {
         name: data.name,
         email: data.email,
-        role: data.role,
       };
+
+      // Don't allow users to change their own role
+      if (!isEditingSelf) {
+        updateData.role = data.role;
+      }
       // Only include password if it was provided
       if (data.password && data.password.length > 0) {
         updateData.password = data.password;
@@ -138,12 +162,23 @@ export const UserForm = ({ userId, onSuccess, onCancel }: UserFormProps) => {
         <label className="form-label" htmlFor="role">
           Role *
         </label>
-        <select {...register('role')} id="role" className="form-control">
+        <select
+          {...register('role')}
+          id="role"
+          className="form-control"
+          disabled={isEditingSelf}
+          title={isEditingSelf ? 'You cannot change your own role' : ''}
+        >
           <option value={UserRole.USER}>User</option>
           <option value={UserRole.ADMIN}>Admin</option>
         </select>
         {errors.role && (
           <p className="error-message">{errors.role.message}</p>
+        )}
+        {isEditingSelf && (
+          <p style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+            You cannot change your own role
+          </p>
         )}
       </div>
 

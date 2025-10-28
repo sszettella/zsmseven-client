@@ -22,7 +22,7 @@ const tradeSchema = z.object({
 type TradeFormData = z.infer<typeof tradeSchema>;
 
 interface TradeFormProps {
-  portfolioId: string;
+  portfolioId?: string; // Optional for standalone trades
   trade?: OptionTrade;
 }
 
@@ -73,12 +73,26 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
       updateTrade(
         { tradeId: trade.id, data },
         {
-          onSuccess: () => navigate(`/portfolios/${portfolioId}`),
+          onSuccess: () => {
+            // Navigate based on whether we have a portfolioId
+            if (portfolioId) {
+              navigate(`/portfolios/${portfolioId}`);
+            } else {
+              navigate('/trades');
+            }
+          },
         }
       );
     } else {
       createTrade(data, {
-        onSuccess: () => navigate(`/portfolios/${portfolioId}`),
+        onSuccess: () => {
+          // Navigate based on whether we have a portfolioId
+          if (portfolioId) {
+            navigate(`/portfolios/${portfolioId}`);
+          } else {
+            navigate('/trades');
+          }
+        },
       });
     }
   };
@@ -244,7 +258,12 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
             marginBottom: '1rem',
           }}
         >
-          <strong>Total Cost: {formatCurrency(totalCost)}</strong>
+          <strong>
+            {action === OptionAction.SELL_TO_OPEN || action === OptionAction.SELL_TO_CLOSE
+              ? 'Total Credit: '
+              : 'Total Cost: '}
+            {formatCurrency(totalCost)}
+          </strong>
           <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
             = ({premium} × {quantity} × 100) {action.includes('buy') ? '+' : '-'} {commission}
           </div>
@@ -254,7 +273,7 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(`/portfolios/${portfolioId}`)}
+            onClick={() => navigate(portfolioId ? `/portfolios/${portfolioId}` : '/trades')}
           >
             Cancel
           </button>

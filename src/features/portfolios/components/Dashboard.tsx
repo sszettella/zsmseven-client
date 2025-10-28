@@ -24,6 +24,12 @@ export const Dashboard = () => {
         <div className="card">
           <h3 style={{ marginBottom: '0.5rem' }}>Quick Actions</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+            <Link to="/trades/new" className="btn btn-primary">
+              Enter New Trade
+            </Link>
+            <Link to="/trades" className="btn btn-secondary">
+              View All Trades
+            </Link>
             <Link to="/portfolios" className="btn btn-secondary">
               View All Portfolios
             </Link>

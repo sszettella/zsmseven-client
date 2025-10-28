@@ -23,7 +23,16 @@ export const LoginForm = () => {
   });
 
   const onSubmit = (data: LoginCredentials) => {
-    login(data);
+    console.log('Login attempt with:', data.email);
+    login(data, {
+      onError: (error: any) => {
+        console.error('Login error:', error);
+        console.error('Error response:', error.response?.data);
+      },
+      onSuccess: (data) => {
+        console.log('Login success:', data);
+      }
+    });
   };
 
   return (

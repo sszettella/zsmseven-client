@@ -2,54 +2,86 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tradesService } from '../api/tradesService';
 import { CreateTradeData, UpdateTradeData } from '@/types/trade';
 
-export const useTrades = (portfolioId: string) => {
+// Get all trades - supports both all trades and portfolio-filtered
+export const useTrades = (portfolioId?: string) => {
   return useQuery({
-    queryKey: ['trades', portfolioId],
-    queryFn: () => tradesService.getByPortfolio(portfolioId),
-    enabled: !!portfolioId,
+    queryKey: portfolioId ? ['trades', portfolioId] : ['trades'],
+    queryFn: () => portfolioId ? tradesService.getByPortfolio(portfolioId) : tradesService.getAll(),
   });
 };
 
-export const useTrade = (portfolioId: string, tradeId: string, options?: { enabled?: boolean }) => {
+// Get single trade - supports both standalone and portfolio-scoped
+export const useTrade = (portfolioId: string | undefined, tradeId: string, options?: { enabled?: boolean }) => {
   return useQuery({
-    queryKey: ['trade', portfolioId, tradeId],
-    queryFn: () => tradesService.getById(portfolioId, tradeId),
-    enabled: options?.enabled !== undefined ? options.enabled : (!!portfolioId && !!tradeId),
+    queryKey: portfolioId ? ['trade', portfolioId, tradeId] : ['trade', tradeId],
+    queryFn: () => portfolioId
+      ? tradesService.getByIdWithPortfolio(portfolioId, tradeId)
+      : tradesService.getById(tradeId),
+    enabled: options?.enabled !== undefined ? options.enabled : !!tradeId,
   });
 };
 
-export const useCreateTrade = (portfolioId: string) => {
+// Create trade - supports both standalone and portfolio-scoped
+export const useCreateTrade = (portfolioId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (trade: CreateTradeData) => tradesService.create(portfolioId, trade),
+    mutationFn: (trade: CreateTradeData) => {
+      // Add portfolioId to trade data if provided
+      const tradeData = portfolioId ? { ...trade, portfolioId } : trade;
+      return tradesService.create(tradeData);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
+      // Invalidate all trades query
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      // Also invalidate portfolio-specific queries if applicable
+      if (portfolioId) {
+        queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
+        queryClient.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
+      }
     },
   });
 };
 
-export const useUpdateTrade = (portfolioId: string) => {
+// Update trade - supports both standalone and portfolio-scoped
+export const useUpdateTrade = (portfolioId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ tradeId, data }: { tradeId: string; data: UpdateTradeData }) =>
-      tradesService.update(portfolioId, tradeId, data),
+      portfolioId
+        ? tradesService.updateWithPortfolio(portfolioId, tradeId, data)
+        : tradesService.update(tradeId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
-      queryClient.invalidateQueries({ queryKey: ['trade', portfolioId, variables.tradeId] });
+      // Invalidate all trades query
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      // Invalidate specific trade
+      queryClient.invalidateQueries({ queryKey: ['trade', variables.tradeId] });
+      // Also invalidate portfolio-specific queries if applicable
+      if (portfolioId) {
+        queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
+        queryClient.invalidateQueries({ queryKey: ['trade', portfolioId, variables.tradeId] });
+      }
     },
   });
 };
 
-export const useDeleteTrade = (portfolioId: string) => {
+// Delete trade - supports both standalone and portfolio-scoped
+export const useDeleteTrade = (portfolioId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (tradeId: string) => tradesService.delete(portfolioId, tradeId),
+    mutationFn: ({ tradeId }: { tradeId: string }) =>
+      portfolioId
+        ? tradesService.deleteWithPortfolio(portfolioId, tradeId)
+        : tradesService.delete(tradeId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
+      // Invalidate all trades query
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      // Also invalidate portfolio-specific queries if applicable
+      if (portfolioId) {
+        queryClient.invalidateQueries({ queryKey: ['trades', portfolioId] });
+      }
     },
   });
 };
