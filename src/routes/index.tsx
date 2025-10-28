@@ -7,6 +7,7 @@ import { Dashboard } from '@/features/portfolios/components/Dashboard';
 import { PortfolioList } from '@/features/portfolios/components/PortfolioList';
 import { PortfolioDetail } from '@/features/portfolios/components/PortfolioDetail';
 import { TradeForm } from '@/features/trades/components/TradeForm';
+import { UserList } from '@/features/users/components/UserList';
 
 export const router = createBrowserRouter([
   {
@@ -47,18 +48,12 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        path: 'admin',
+        path: 'admin/users',
         element: (
           <AdminRoute>
-            <div>Admin Area</div>
+            <UserList />
           </AdminRoute>
         ),
-        children: [
-          {
-            path: 'users',
-            element: <div className="card"><h2>User Management</h2><p>User management interface coming soon...</p></div>,
-          },
-        ],
       },
     ],
   },
