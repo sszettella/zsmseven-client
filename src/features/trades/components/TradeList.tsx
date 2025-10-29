@@ -63,7 +63,23 @@ export const TradeList = () => {
     );
   }
 
-  const openTrades = trades.filter((t) => t.status === TradeStatus.OPEN);
+  const openTrades = trades
+    .filter((t) => t.status === TradeStatus.OPEN)
+    .sort((a, b) => {
+      // First, sort by DTE ascending (lowest/expiring soonest first)
+      const dteA = calculateDaysToExpiration(a.expirationDate);
+      const dteB = calculateDaysToExpiration(b.expirationDate);
+
+      if (dteA !== dteB) {
+        return dteA - dteB;
+      }
+
+      // If DTE is the same, sort by open date (oldest first)
+      const dateA = new Date(a.openTradeDate).getTime();
+      const dateB = new Date(b.openTradeDate).getTime();
+      return dateA - dateB;
+    });
+
   const closedTrades = trades
     .filter((t) => t.status === TradeStatus.CLOSED)
     .sort((a, b) => {
