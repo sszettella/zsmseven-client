@@ -11,8 +11,17 @@ const POSITIONS_BASE_URL = '/positions';
 
 // Get all positions for a portfolio
 export const getPortfolioPositions = async (portfolioId: string): Promise<Position[]> => {
-  const response = await apiClient.get(`/portfolios/${portfolioId}/positions`);
-  return response.data.positions;
+  try {
+    const response = await apiClient.get(`/portfolios/${portfolioId}/positions`);
+    return response.data.positions || [];
+  } catch (error: any) {
+    // If endpoint doesn't exist or returns 404, return empty array
+    if (error.response?.status === 404 || !error.response) {
+      console.warn('Positions endpoint not available, returning empty array');
+      return [];
+    }
+    throw error;
+  }
 };
 
 // Get a single position by ID

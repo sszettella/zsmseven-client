@@ -68,7 +68,7 @@ export const EditPortfolio = () => {
       }));
       setPositions(mappedPositions);
     }
-  }, [existingPositions]);
+  }, [existingPositions, positions.length]);
 
   const {
     register: registerPortfolio,
@@ -102,6 +102,10 @@ export const EditPortfolio = () => {
   });
 
   const handleAddPosition = (data: PositionFormData) => {
+    console.log('handleAddPosition called with:', data);
+    console.log('editingPositionId:', editingPositionId);
+    console.log('current positions:', positions);
+
     const newPosition: PositionInput = {
       ...data,
       ticker: data.ticker.toUpperCase(),
@@ -110,13 +114,23 @@ export const EditPortfolio = () => {
       isNew: !editingPositionId || editingPositionId.startsWith('temp-'),
     };
 
+    console.log('newPosition created:', newPosition);
+
     if (editingPositionId) {
       // Update existing position in the list
-      setPositions(positions.map((p) => (p.tempId === editingPositionId ? { ...newPosition, id: p.id } : p)));
+      const updatedPositions = positions.map((p) =>
+        p.tempId === editingPositionId
+          ? { ...newPosition, id: p.id, isNew: p.isNew } // Preserve original id and isNew flag
+          : p
+      );
+      console.log('Updated positions after edit:', updatedPositions);
+      setPositions(updatedPositions);
       setEditingPositionId(null);
     } else {
       // Add new position
-      setPositions([...positions, newPosition]);
+      const updatedPositions = [...positions, newPosition];
+      console.log('Updated positions after add:', updatedPositions);
+      setPositions(updatedPositions);
     }
 
     resetPosition();
@@ -151,22 +165,28 @@ export const EditPortfolio = () => {
   };
 
   const onSubmit = async (data: PortfolioFormData) => {
+    console.log('=== EditPortfolio Submit ===');
+    console.log('Positions to process:', positions);
+    console.log('Deleted position IDs:', deletedPositionIds);
+
     // Update portfolio first
     updatePortfolio(
       { id: portfolioId!, data },
       {
         onSuccess: async () => {
           // Handle position deletions
-          const deletePromises = deletedPositionIds.map((id) =>
-            new Promise((resolve, reject) => {
+          const deletePromises = deletedPositionIds.map((id) => {
+            console.log('Deleting position:', id);
+            return new Promise((resolve, reject) => {
               deletePosition(id, { onSuccess: resolve, onError: reject });
-            })
-          );
+            });
+          });
 
           // Handle position updates and creations
           const positionPromises = positions.map((position) => {
             if (position.isNew || !position.id) {
               // Create new position
+              console.log('Creating new position:', position);
               const positionData: CreatePositionData = {
                 ticker: position.ticker,
                 shares: position.shares,
@@ -183,6 +203,7 @@ export const EditPortfolio = () => {
               });
             } else {
               // Update existing position
+              console.log('Updating existing position:', position);
               const positionData: CreatePositionData = {
                 ticker: position.ticker,
                 shares: position.shares,
@@ -194,7 +215,16 @@ export const EditPortfolio = () => {
               return new Promise((resolve, reject) => {
                 updatePosition(
                   { positionId: position.id!, data: positionData },
-                  { onSuccess: resolve, onError: reject }
+                  {
+                    onSuccess: (result) => {
+                      console.log('Position updated successfully:', result);
+                      resolve(result);
+                    },
+                    onError: (error) => {
+                      console.error('Error updating position:', error);
+                      reject(error);
+                    },
+                  }
                 );
               });
             }
