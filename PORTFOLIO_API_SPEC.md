@@ -2,7 +2,12 @@
 
 ## Overview
 
-This specification defines a RESTful API for managing investment portfolios and options trades. Portfolios serve as organizational containers for option trades, with the system calculating profit/loss, performance metrics, and analytics.
+This specification defines a RESTful API for managing investment portfolios and options trades.
+
+**Key Concepts:**
+- **Portfolios** contain **positions** (stock/ETF holdings with ticker, shares, and cost basis)
+- **Trades** (options) can be associated with portfolios for organizational purposes, but exist independently
+- Portfolios track equity positions, while trades track options activity
 
 **Base URL:** `http://localhost:8000/api`
 
@@ -14,6 +19,8 @@ This specification defines a RESTful API for managing investment portfolios and 
 
 ### Portfolio
 
+A portfolio represents a collection of equity positions (stocks, ETFs, etc.).
+
 ```typescript
 {
   id: string;              // UUID, server-generated
@@ -21,12 +28,42 @@ This specification defines a RESTful API for managing investment portfolios and 
   name: string;            // 1-100 characters, required
   description?: string;    // Max 500 characters, optional
   isActive: boolean;       // Default: true
+  isDefault: boolean;      // Default: false - Only one portfolio per user can be default
+  createdAt: string;       // ISO 8601 datetime
+  updatedAt: string;       // ISO 8601 datetime
+}
+```
+
+**Note on `isDefault`:**
+- Only one portfolio per user can be marked as default
+- When creating a trade, if no portfolio is specified, it will be associated with the default portfolio (if one exists)
+- Setting a portfolio as default will automatically unset any other default portfolio for that user
+- Default portfolios are useful for quickly associating options trades without manual selection
+
+### Position
+
+A position represents a holding of shares in a portfolio.
+
+```typescript
+{
+  id: string;              // UUID, server-generated
+  portfolioId: string;     // UUID, required - positions must belong to a portfolio
+  ticker: string;          // Stock ticker symbol (e.g., "AAPL", "SPY")
+  shares: number;          // Number of shares (can be fractional, e.g., 10.5)
+  costBasis: number;       // Total cost basis in dollars (e.g., 1500.00)
+  averageCost: number;     // SERVER CALCULATED: costBasis / shares
+  currentPrice?: number;   // Optional: Current market price per share
+  marketValue?: number;    // SERVER CALCULATED: shares × currentPrice (if price available)
+  unrealizedPL?: number;   // SERVER CALCULATED: marketValue - costBasis (if price available)
+  notes?: string;          // Optional notes (max 1000 characters)
   createdAt: string;       // ISO 8601 datetime
   updatedAt: string;       // ISO 8601 datetime
 }
 ```
 
 ### Trade
+
+Trades (options) can optionally be associated with portfolios for organizational purposes, but are managed separately.
 
 ```typescript
 {
@@ -47,7 +84,7 @@ This specification defines a RESTful API for managing investment portfolios and 
   openPremium: number;           // Premium per contract (e.g., 2.50)
   openCommission: number;        // Commission paid (e.g., 0.65)
   openTradeDate: string;         // ISO 8601 date
-  openTotalCost: number;         // SERVER CALCULATED - see calculation rules
+  openTotalCost: number;         // SERVER CALCULATED
 
   // Closing Transaction (null until trade is closed)
   closeAction?: "sell_to_close" | "buy_to_close";  // Must match openAction
@@ -55,7 +92,7 @@ This specification defines a RESTful API for managing investment portfolios and 
   closePremium?: number;         // Premium per contract
   closeCommission?: number;      // Commission paid
   closeTradeDate?: string;       // ISO 8601 date
-  closeTotalCost?: number;       // SERVER CALCULATED - see calculation rules
+  closeTotalCost?: number;       // SERVER CALCULATED
 
   // Status and P/L
   status: "open" | "closed";     // Trade status
@@ -68,23 +105,34 @@ This specification defines a RESTful API for managing investment portfolios and 
 }
 ```
 
-### Portfolio Statistics
+### Portfolio Summary
+
+Aggregated view of a portfolio including positions and optional metrics.
 
 ```typescript
 {
-  portfolioId: string;
-  totalTrades: number;           // Count of all trades
-  openTradesCount: number;       // Count of open trades
-  closedTradesCount: number;     // Count of closed trades
-  totalProfitLoss: number;       // Sum of all closed trade P&L
-  winRate: number;               // Percentage of profitable closed trades (0-100)
-  winningTrades: number;         // Count of trades with profitLoss > 0
-  losingTrades: number;          // Count of trades with profitLoss < 0
-  averageWin: number;            // Average profit of winning trades
-  averageLoss: number;           // Average loss of losing trades
-  totalCapitalDeployed: number;  // Sum of |openTotalCost| for open trades
-  last30DaysProfitLoss: number;  // P&L for trades closed in past 30 days
-  last30DaysTradeCount: number;  // Count of trades closed in past 30 days
+  portfolio: Portfolio;
+  positions: Position[];
+  metrics: {
+    totalPositions: number;          // Count of positions
+    totalMarketValue: number;        // Sum of all position market values
+    totalCostBasis: number;          // Sum of all position cost bases
+    totalUnrealizedPL: number;       // Sum of all position unrealized P&L
+    totalUnrealizedPLPercent: number; // (totalUnrealizedPL / totalCostBasis) × 100
+    topGainer?: {                    // Position with highest unrealized P&L %
+      ticker: string;
+      unrealizedPLPercent: number;
+    };
+    topLoser?: {                     // Position with lowest unrealized P&L %
+      ticker: string;
+      unrealizedPLPercent: number;
+    };
+  };
+  associatedTrades?: {               // Optional: trades linked to this portfolio
+    openCount: number;
+    closedCount: number;
+    totalProfitLoss: number;
+  };
 }
 ```
 
@@ -92,63 +140,47 @@ This specification defines a RESTful API for managing investment portfolios and 
 
 ## Calculation Rules
 
-### Open Total Cost
+### Position Calculations
 
-Represents the net debit or credit when opening a position:
-
-- **BUY_TO_OPEN (debit):**
+- **Average Cost:**
   ```
-  openTotalCost = (openPremium × openQuantity × 100) + openCommission
+  averageCost = costBasis / shares
   ```
-  *Example: Buy 2 contracts @ $2.50 with $0.65 commission*
+  *Example: 100 shares with $5,000 cost basis*
   ```
-  openTotalCost = (2.50 × 2 × 100) + 0.65 = $500.65
+  averageCost = $5,000 / 100 = $50.00 per share
   ```
 
-- **SELL_TO_OPEN (credit):**
+- **Market Value:**
   ```
-  openTotalCost = (openPremium × openQuantity × 100) - openCommission
+  marketValue = shares × currentPrice
   ```
-  *Example: Sell 2 contracts @ $2.50 with $0.65 commission*
+  *Example: 100 shares at current price of $55.00*
   ```
-  openTotalCost = (2.50 × 2 × 100) - 0.65 = $499.35
-  ```
-
-### Close Total Cost
-
-Represents the net credit or debit when closing a position:
-
-- **SELL_TO_CLOSE (credit):**
-  ```
-  closeTotalCost = (closePremium × closeQuantity × 100) - closeCommission
+  marketValue = 100 × $55.00 = $5,500.00
   ```
 
-- **BUY_TO_CLOSE (debit):**
+- **Unrealized P&L:**
   ```
-  closeTotalCost = (closePremium × closeQuantity × 100) + closeCommission
+  unrealizedPL = marketValue - costBasis
   ```
-
-### Profit/Loss
-
-Calculated differently based on whether position was long or short:
-
-- **Long positions (BUY_TO_OPEN → SELL_TO_CLOSE):**
+  *Example: Market value $5,500, cost basis $5,000*
   ```
-  profitLoss = closeTotalCost - openTotalCost
-  ```
-  *Example: Bought for $500.65, sold for $600.35*
-  ```
-  profitLoss = $600.35 - $500.65 = $99.70
+  unrealizedPL = $5,500 - $5,000 = $500.00
   ```
 
-- **Short positions (SELL_TO_OPEN → BUY_TO_CLOSE):**
+- **Unrealized P&L Percent:**
   ```
-  profitLoss = openTotalCost - closeTotalCost
+  unrealizedPLPercent = (unrealizedPL / costBasis) × 100
   ```
-  *Example: Sold for $499.35, bought back for $400.65*
+  *Example: Unrealized P&L $500, cost basis $5,000*
   ```
-  profitLoss = $499.35 - $400.65 = $98.70
+  unrealizedPLPercent = ($500 / $5,000) × 100 = 10%
   ```
+
+### Trade Calculations
+
+*(Same as original specification - see Trade Endpoints section for details)*
 
 ---
 
@@ -164,6 +196,7 @@ Returns all portfolios for the authenticated user.
 
 **Query Parameters:**
 - `isActive` (optional): `true` | `false` - Filter by active status
+- `includeSummary` (optional): `true` | `false` - Include position summaries
 
 **Response:** `200 OK`
 ```json
@@ -172,8 +205,8 @@ Returns all portfolios for the authenticated user.
     {
       "id": "uuid",
       "userId": "uuid",
-      "name": "Tech Options",
-      "description": "Technology sector options trades",
+      "name": "Long-Term Holdings",
+      "description": "Core equity positions",
       "isActive": true,
       "createdAt": "2024-01-15T10:30:00Z",
       "updatedAt": "2024-01-15T10:30:00Z"
@@ -193,17 +226,75 @@ Returns a single portfolio by ID.
 **Path Parameters:**
 - `id` (required): Portfolio UUID
 
+**Query Parameters:**
+- `includePositions` (optional): `true` | `false` (default: `false`) - Include positions array
+- `includeMetrics` (optional): `true` | `false` (default: `false`) - Include calculated metrics
+- `includeTrades` (optional): `true` | `false` (default: `false`) - Include associated trades summary
+
 **Response:** `200 OK`
+
+*Basic response (no query params):*
 ```json
 {
   "portfolio": {
     "id": "uuid",
     "userId": "uuid",
-    "name": "Tech Options",
-    "description": "Technology sector options trades",
+    "name": "Long-Term Holdings",
+    "description": "Core equity positions",
     "isActive": true,
     "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+*Full response (all query params true):*
+```json
+{
+  "portfolio": {
+    "id": "uuid",
+    "userId": "uuid",
+    "name": "Long-Term Holdings",
+    "description": "Core equity positions",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  },
+  "positions": [
+    {
+      "id": "uuid",
+      "portfolioId": "uuid",
+      "ticker": "AAPL",
+      "shares": 100,
+      "costBasis": 15000.00,
+      "averageCost": 150.00,
+      "currentPrice": 175.50,
+      "marketValue": 17550.00,
+      "unrealizedPL": 2550.00,
+      "notes": "Added during tech dip",
+      "createdAt": "2024-01-10T14:30:00Z",
+      "updatedAt": "2024-01-10T14:30:00Z"
+    }
+  ],
+  "metrics": {
+    "totalPositions": 5,
+    "totalMarketValue": 125000.00,
+    "totalCostBasis": 100000.00,
+    "totalUnrealizedPL": 25000.00,
+    "totalUnrealizedPLPercent": 25.0,
+    "topGainer": {
+      "ticker": "NVDA",
+      "unrealizedPLPercent": 45.5
+    },
+    "topLoser": {
+      "ticker": "DIS",
+      "unrealizedPLPercent": -8.2
+    }
+  },
+  "associatedTrades": {
+    "openCount": 3,
+    "closedCount": 12,
+    "totalProfitLoss": 4500.00
   }
 }
 ```
@@ -223,9 +314,10 @@ Creates a new portfolio for the authenticated user.
 **Request Body:**
 ```json
 {
-  "name": "Tech Options",
-  "description": "Technology sector options trades",  // optional
-  "isActive": true  // optional, defaults to true
+  "name": "Long-Term Holdings",
+  "description": "Core equity positions",  // optional
+  "isActive": true,  // optional, defaults to true
+  "isDefault": false  // optional, defaults to false
 }
 ```
 
@@ -233,6 +325,12 @@ Creates a new portfolio for the authenticated user.
 - `name`: Required, 1-100 characters
 - `description`: Optional, max 500 characters
 - `isActive`: Optional, boolean, defaults to true
+- `isDefault`: Optional, boolean, defaults to false
+
+**Server Behavior for `isDefault`:**
+- If `isDefault: true`, the server will automatically set `isDefault: false` on any other portfolio for this user
+- Only one portfolio per user can be marked as default at a time
+- Default portfolios are used for auto-associating options trades when no portfolio is explicitly selected
 
 **Response:** `201 Created`
 ```json
@@ -240,9 +338,10 @@ Creates a new portfolio for the authenticated user.
   "portfolio": {
     "id": "uuid",
     "userId": "uuid",
-    "name": "Tech Options",
-    "description": "Technology sector options trades",
+    "name": "Long-Term Holdings",
+    "description": "Core equity positions",
     "isActive": true,
+    "isDefault": false,
     "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T10:30:00Z"
   }
@@ -267,9 +366,10 @@ Updates an existing portfolio.
 **Request Body:**
 ```json
 {
-  "name": "Updated Tech Options",  // optional
+  "name": "Updated Long-Term Holdings",  // optional
   "description": "Updated description",  // optional
-  "isActive": false  // optional
+  "isActive": false,  // optional
+  "isDefault": true  // optional
 }
 ```
 
@@ -278,15 +378,20 @@ Updates an existing portfolio.
 - `name`: 1-100 characters if provided
 - `description`: Max 500 characters if provided
 
+**Server Behavior for `isDefault`:**
+- If `isDefault: true`, the server will automatically set `isDefault: false` on any other portfolio for this user
+- Setting `isDefault: false` is allowed if you want to remove the default designation
+
 **Response:** `200 OK`
 ```json
 {
   "portfolio": {
     "id": "uuid",
     "userId": "uuid",
-    "name": "Updated Tech Options",
+    "name": "Updated Long-Term Holdings",
     "description": "Updated description",
     "isActive": false,
+    "isDefault": true,
     "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T11:45:00Z"
   }
@@ -305,29 +410,60 @@ Updates an existing portfolio.
 
 **DELETE** `/portfolios/:id`
 
-Deletes a portfolio.
+Deletes a portfolio and handles associated positions and trades.
 
 **Path Parameters:**
 - `id` (required): Portfolio UUID
 
 **Query Parameters:**
+- `deletePositions` (required): `true` | `false`
+  - If `true`: Delete all positions (CASCADE DELETE)
+  - If `false`: Reject if portfolio has positions (must be empty)
 - `orphanTrades` (optional): `true` | `false` (default: `true`)
-  - If `true`: Set portfolioId to null for all associated trades (orphan them)
-  - If `false`: Delete all associated trades (cascade delete)
+  - If `true`: Set portfolioId to null for associated trades
+  - If `false`: Keep trades linked (no action - trades reference becomes invalid)
 
 **Response:** `204 No Content`
 
 **Error Responses:**
+- `400 Bad Request` - Portfolio has positions and deletePositions=false
 - `404 Not Found` - Portfolio does not exist
 - `403 Forbidden` - Portfolio belongs to different user
 
 ---
 
-#### 6. Get Portfolio Statistics
+#### 6. Get Default Portfolio
 
-**GET** `/portfolios/:id/stats`
+**GET** `/portfolios/default`
 
-Returns aggregated statistics for a portfolio.
+Returns the user's default portfolio for options trades (if one is set).
+
+**Response:** `200 OK`
+```json
+{
+  "portfolio": {
+    "id": "uuid",
+    "userId": "uuid",
+    "name": "Options Trading",
+    "description": "Default portfolio for options trades",
+    "isActive": true,
+    "isDefault": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - No default portfolio set for user
+
+---
+
+#### 7. Set Default Portfolio
+
+**POST** `/portfolios/:id/set-default`
+
+Sets a portfolio as the default for options trades. Automatically unsets any other default portfolio.
 
 **Path Parameters:**
 - `id` (required): Portfolio UUID
@@ -335,20 +471,15 @@ Returns aggregated statistics for a portfolio.
 **Response:** `200 OK`
 ```json
 {
-  "stats": {
-    "portfolioId": "uuid",
-    "totalTrades": 25,
-    "openTradesCount": 5,
-    "closedTradesCount": 20,
-    "totalProfitLoss": 1250.50,
-    "winRate": 65.0,
-    "winningTrades": 13,
-    "losingTrades": 7,
-    "averageWin": 150.75,
-    "averageLoss": -85.25,
-    "totalCapitalDeployed": 2500.00,
-    "last30DaysProfitLoss": 350.25,
-    "last30DaysTradeCount": 5
+  "portfolio": {
+    "id": "uuid",
+    "userId": "uuid",
+    "name": "Options Trading",
+    "description": "Default portfolio for options trades",
+    "isActive": true,
+    "isDefault": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
   }
 }
 ```
@@ -359,9 +490,274 @@ Returns aggregated statistics for a portfolio.
 
 ---
 
+### Position Endpoints
+
+#### 8. List Positions by Portfolio
+
+**GET** `/portfolios/:portfolioId/positions`
+
+Returns all positions for a portfolio.
+
+**Path Parameters:**
+- `portfolioId` (required): Portfolio UUID
+
+**Query Parameters:**
+- `sortBy` (optional): `ticker` | `shares` | `costBasis` | `marketValue` | `unrealizedPL` | `unrealizedPLPercent` (default: `ticker`)
+- `sortOrder` (optional): `asc` | `desc` (default: `asc`)
+
+**Response:** `200 OK`
+```json
+{
+  "positions": [
+    {
+      "id": "uuid",
+      "portfolioId": "uuid",
+      "ticker": "AAPL",
+      "shares": 100,
+      "costBasis": 15000.00,
+      "averageCost": 150.00,
+      "currentPrice": 175.50,
+      "marketValue": 17550.00,
+      "unrealizedPL": 2550.00,
+      "notes": "Added during tech dip",
+      "createdAt": "2024-01-10T14:30:00Z",
+      "updatedAt": "2024-01-10T14:30:00Z"
+    }
+  ],
+  "total": 5
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Portfolio does not exist
+- `403 Forbidden` - Portfolio belongs to different user
+
+---
+
+#### 9. Get Position by ID
+
+**GET** `/positions/:id`
+
+Returns a single position by ID.
+
+**Path Parameters:**
+- `id` (required): Position UUID
+
+**Response:** `200 OK`
+```json
+{
+  "position": {
+    "id": "uuid",
+    "portfolioId": "uuid",
+    "ticker": "AAPL",
+    "shares": 100,
+    "costBasis": 15000.00,
+    "averageCost": 150.00,
+    "currentPrice": 175.50,
+    "marketValue": 17550.00,
+    "unrealizedPL": 2550.00,
+    "notes": "Added during tech dip",
+    "createdAt": "2024-01-10T14:30:00Z",
+    "updatedAt": "2024-01-10T14:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Position does not exist
+- `403 Forbidden` - Position belongs to portfolio owned by different user
+
+---
+
+#### 10. Create Position
+
+**POST** `/portfolios/:portfolioId/positions`
+
+Creates a new position in a portfolio.
+
+**Path Parameters:**
+- `portfolioId` (required): Portfolio UUID
+
+**Request Body:**
+```json
+{
+  "ticker": "AAPL",
+  "shares": 100,
+  "costBasis": 15000.00,
+  "currentPrice": 175.50,  // optional
+  "notes": "Added during tech dip"  // optional
+}
+```
+
+**Validation Rules:**
+- `ticker`: Required, 1-10 uppercase characters (auto-converted to uppercase)
+- `shares`: Required, must be > 0, can be fractional (e.g., 10.5)
+- `costBasis`: Required, must be > 0
+- `currentPrice`: Optional, must be > 0 if provided
+- `notes`: Optional, max 1000 characters
+- Cannot create duplicate ticker in same portfolio (must update existing position instead)
+
+**Server Calculations:**
+- `averageCost`: Calculated as costBasis / shares
+- `marketValue`: Calculated as shares × currentPrice (if currentPrice provided)
+- `unrealizedPL`: Calculated as marketValue - costBasis (if currentPrice provided)
+
+**Response:** `201 Created`
+```json
+{
+  "position": {
+    "id": "uuid",
+    "portfolioId": "uuid",
+    "ticker": "AAPL",
+    "shares": 100,
+    "costBasis": 15000.00,
+    "averageCost": 150.00,
+    "currentPrice": 175.50,
+    "marketValue": 17550.00,
+    "unrealizedPL": 2550.00,
+    "notes": "Added during tech dip",
+    "createdAt": "2024-01-10T14:30:00Z",
+    "updatedAt": "2024-01-10T14:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Validation error
+- `404 Not Found` - Portfolio does not exist
+- `403 Forbidden` - Portfolio belongs to different user
+- `409 Conflict` - Position with same ticker already exists in portfolio
+
+---
+
+#### 11. Update Position
+
+**PUT** `/positions/:id`
+
+Updates an existing position.
+
+**Path Parameters:**
+- `id` (required): Position UUID
+
+**Request Body:**
+```json
+{
+  "ticker": "AAPL",  // optional (usually shouldn't change)
+  "shares": 150,  // optional
+  "costBasis": 22500.00,  // optional
+  "currentPrice": 180.00,  // optional (can set to null to clear)
+  "notes": "Updated notes"  // optional
+}
+```
+
+**Validation Rules:**
+- All fields are optional
+- Same validation as Create Position for each field if provided
+- Changing ticker may cause conflict if new ticker already exists in portfolio
+
+**Server Calculations:**
+- Recalculates `averageCost` if shares or costBasis changes
+- Recalculates `marketValue` if shares or currentPrice changes
+- Recalculates `unrealizedPL` if marketValue or costBasis changes
+
+**Response:** `200 OK`
+```json
+{
+  "position": {
+    "id": "uuid",
+    "portfolioId": "uuid",
+    "ticker": "AAPL",
+    "shares": 150,
+    "costBasis": 22500.00,
+    "averageCost": 150.00,
+    "currentPrice": 180.00,
+    "marketValue": 27000.00,
+    "unrealizedPL": 4500.00,
+    "notes": "Updated notes",
+    "createdAt": "2024-01-10T14:30:00Z",
+    "updatedAt": "2024-02-15T16:20:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Validation error
+- `404 Not Found` - Position does not exist
+- `403 Forbidden` - Position belongs to portfolio owned by different user
+- `409 Conflict` - Ticker change conflicts with existing position in portfolio
+
+---
+
+#### 12. Delete Position
+
+**DELETE** `/positions/:id`
+
+Deletes a position from a portfolio.
+
+**Path Parameters:**
+- `id` (required): Position UUID
+
+**Response:** `204 No Content`
+
+**Error Responses:**
+- `404 Not Found` - Position does not exist
+- `403 Forbidden` - Position belongs to portfolio owned by different user
+
+---
+
+#### 13. Update Position Prices (Batch)
+
+**PATCH** `/portfolios/:portfolioId/positions/prices`
+
+Updates current prices for multiple positions at once (useful for market data updates).
+
+**Path Parameters:**
+- `portfolioId` (required): Portfolio UUID
+
+**Request Body:**
+```json
+{
+  "prices": [
+    { "ticker": "AAPL", "currentPrice": 175.50 },
+    { "ticker": "GOOGL", "currentPrice": 140.25 },
+    { "ticker": "MSFT", "currentPrice": 415.80 }
+  ]
+}
+```
+
+**Validation Rules:**
+- Each price entry must have ticker and currentPrice
+- currentPrice must be > 0
+- Tickers that don't exist in portfolio are ignored (no error)
+
+**Response:** `200 OK`
+```json
+{
+  "updated": 3,
+  "positions": [
+    {
+      "id": "uuid",
+      "ticker": "AAPL",
+      "currentPrice": 175.50,
+      "marketValue": 17550.00,
+      "unrealizedPL": 2550.00
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Validation error
+- `404 Not Found` - Portfolio does not exist
+- `403 Forbidden` - Portfolio belongs to different user
+
+---
+
 ### Trade Endpoints
 
-#### 7. List All Trades
+*(Trades remain largely the same but are now clearly separated from portfolios)*
+
+#### 14. List All Trades
 
 **GET** `/trades`
 
@@ -408,23 +804,11 @@ Returns all trades for the authenticated user.
 
 ---
 
-#### 8. Get Open Trades
-
-**GET** `/trades/open`
-
-Convenience endpoint for open trades (equivalent to `/trades?status=open`).
-
-**Query Parameters:** Same as List All Trades
-
-**Response:** Same format as List All Trades
-
----
-
-#### 9. Get Trades by Portfolio
+#### 15. Get Trades by Portfolio
 
 **GET** `/portfolios/:portfolioId/trades`
 
-Returns all trades for a specific portfolio.
+Returns all trades associated with a portfolio (for organizational purposes).
 
 **Path Parameters:**
 - `portfolioId` (required): Portfolio UUID
@@ -441,56 +825,16 @@ Returns all trades for a specific portfolio.
 
 ---
 
-#### 10. Get Trade by ID
-
-**GET** `/trades/:id`
-
-Returns a single trade by ID.
-
-**Path Parameters:**
-- `id` (required): Trade UUID
-
-**Response:** `200 OK`
-```json
-{
-  "trade": {
-    "id": "uuid",
-    "userId": "uuid",
-    "portfolioId": "uuid",
-    "symbol": "AAPL",
-    "optionType": "call",
-    "strikePrice": 150.00,
-    "expirationDate": "2024-12-20",
-    "openAction": "buy_to_open",
-    "openQuantity": 2,
-    "openPremium": 2.50,
-    "openCommission": 0.65,
-    "openTradeDate": "2024-01-10",
-    "openTotalCost": 500.65,
-    "status": "open",
-    "notes": "Bullish on AAPL earnings",
-    "createdAt": "2024-01-10T14:30:00Z",
-    "updatedAt": "2024-01-10T14:30:00Z"
-  }
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Trade does not exist
-- `403 Forbidden` - Trade belongs to different user
-
----
-
-#### 11. Create Trade
+#### 16. Create Trade
 
 **POST** `/trades`
 
-Creates a new trade.
+Creates a new options trade.
 
 **Request Body:**
 ```json
 {
-  "portfolioId": "uuid",  // optional
+  "portfolioId": "uuid",  // optional - can associate with portfolio for organization
   "symbol": "AAPL",
   "optionType": "call",
   "strikePrice": 150.00,
@@ -518,47 +862,21 @@ Creates a new trade.
 - `notes`: Optional, max 1000 characters
 
 **Server Calculations:**
-- `openTotalCost`: Calculated based on action, premium, quantity, commission
+- `openTotalCost`:
+  - BUY_TO_OPEN: `(openPremium × openQuantity × 100) + openCommission`
+  - SELL_TO_OPEN: `(openPremium × openQuantity × 100) - openCommission`
 - `status`: Set to "open"
-- `closeAction`, `closeQuantity`, `closePremium`, `closeCommission`, `closeTradeDate`, `closeTotalCost`, `profitLoss`: Set to null
 
 **Response:** `201 Created`
-```json
-{
-  "trade": {
-    "id": "uuid",
-    "userId": "uuid",
-    "portfolioId": "uuid",
-    "symbol": "AAPL",
-    "optionType": "call",
-    "strikePrice": 150.00,
-    "expirationDate": "2024-12-20",
-    "openAction": "buy_to_open",
-    "openQuantity": 2,
-    "openPremium": 2.50,
-    "openCommission": 0.65,
-    "openTradeDate": "2024-01-10",
-    "openTotalCost": 500.65,
-    "status": "open",
-    "notes": "Bullish on AAPL earnings",
-    "createdAt": "2024-01-10T14:30:00Z",
-    "updatedAt": "2024-01-10T14:30:00Z"
-  }
-}
-```
-
-**Error Responses:**
-- `400 Bad Request` - Validation error
-- `404 Not Found` - Portfolio does not exist (if portfolioId provided)
-- `403 Forbidden` - Portfolio belongs to different user (if portfolioId provided)
+*(Same as original specification)*
 
 ---
 
-#### 12. Close Trade
+#### 17. Close Trade
 
 **PUT** `/trades/:id/close`
 
-Closes an open trade.
+Closes an open options trade.
 
 **Path Parameters:**
 - `id` (required): Trade UUID
@@ -569,134 +887,43 @@ Closes an open trade.
   "closePremium": 3.00,
   "closeCommission": 0.65,
   "closeTradeDate": "2024-02-10",
-  "notes": "Taking profit before earnings"  // optional
+  "notes": "Taking profit"  // optional
 }
 ```
 
-**Validation Rules:**
-- Trade must have `status: "open"`
-- `closePremium`: Required, must be >= 0
-- `closeCommission`: Required, must be >= 0
-- `closeTradeDate`: Required, ISO date, cannot be in the future, must be >= openTradeDate
-- `notes`: Optional, max 1000 characters (merged with existing notes if provided)
-
 **Server Calculations:**
-- `closeAction`: Automatically determined based on `openAction`
-  - BUY_TO_OPEN → SELL_TO_CLOSE
-  - SELL_TO_OPEN → BUY_TO_CLOSE
-- `closeQuantity`: Set equal to `openQuantity`
-- `closeTotalCost`: Calculated based on closeAction, premium, quantity, commission
-- `profitLoss`: Calculated based on open/close actions and totals
+- `closeAction`: Automatically determined (BUY_TO_OPEN → SELL_TO_CLOSE, etc.)
+- `closeQuantity`: Set equal to openQuantity
+- `closeTotalCost`:
+  - SELL_TO_CLOSE: `(closePremium × closeQuantity × 100) - closeCommission`
+  - BUY_TO_CLOSE: `(closePremium × closeQuantity × 100) + closeCommission`
+- `profitLoss`:
+  - Long (BUY_TO_OPEN): `closeTotalCost - openTotalCost`
+  - Short (SELL_TO_OPEN): `openTotalCost - closeTotalCost`
 - `status`: Set to "closed"
 
 **Response:** `200 OK`
-```json
-{
-  "trade": {
-    "id": "uuid",
-    "userId": "uuid",
-    "portfolioId": "uuid",
-    "symbol": "AAPL",
-    "optionType": "call",
-    "strikePrice": 150.00,
-    "expirationDate": "2024-12-20",
-    "openAction": "buy_to_open",
-    "openQuantity": 2,
-    "openPremium": 2.50,
-    "openCommission": 0.65,
-    "openTradeDate": "2024-01-10",
-    "openTotalCost": 500.65,
-    "closeAction": "sell_to_close",
-    "closeQuantity": 2,
-    "closePremium": 3.00,
-    "closeCommission": 0.65,
-    "closeTradeDate": "2024-02-10",
-    "closeTotalCost": 599.35,
-    "status": "closed",
-    "profitLoss": 98.70,
-    "notes": "Taking profit before earnings",
-    "createdAt": "2024-01-10T14:30:00Z",
-    "updatedAt": "2024-02-10T15:20:00Z"
-  }
-}
-```
-
-**Error Responses:**
-- `400 Bad Request` - Validation error or trade already closed
-- `404 Not Found` - Trade does not exist
-- `403 Forbidden` - Trade belongs to different user
+*(Same as original specification)*
 
 ---
 
-#### 13. Update Trade
+#### 18. Update Trade
 
 **PUT** `/trades/:id`
 
-Updates an existing trade (open or closed).
+Updates trade details.
 
-**Path Parameters:**
-- `id` (required): Trade UUID
-
-**Request Body:**
-```json
-{
-  "portfolioId": "uuid",  // optional, use null to unassign
-  "symbol": "AAPL",  // optional
-  "optionType": "call",  // optional
-  "strikePrice": 150.00,  // optional
-  "expirationDate": "2024-12-20",  // optional
-  "openQuantity": 2,  // optional
-  "openPremium": 2.50,  // optional
-  "openCommission": 0.65,  // optional
-  "openTradeDate": "2024-01-10",  // optional
-  "closeQuantity": 2,  // optional (closed trades only)
-  "closePremium": 3.00,  // optional (closed trades only)
-  "closeCommission": 0.65,  // optional (closed trades only)
-  "closeTradeDate": "2024-02-10",  // optional (closed trades only)
-  "notes": "Updated notes"  // optional
-}
-```
-
-**Validation Rules:**
-- All fields are optional
-- Same validation as Create Trade for each field if provided
-- Cannot change `openAction` or `closeAction`
-- For closed trades: `closeQuantity` must equal `openQuantity`
-- Cannot update closing fields if trade is open
-
-**Server Calculations:**
-- Recalculates `openTotalCost` if any open fields change
-- Recalculates `closeTotalCost` if any close fields change (closed trades only)
-- Recalculates `profitLoss` if any cost fields change (closed trades only)
-
-**Response:** `200 OK`
-```json
-{
-  "trade": { /* updated trade object */ }
-}
-```
-
-**Error Responses:**
-- `400 Bad Request` - Validation error
-- `404 Not Found` - Trade or portfolio does not exist
-- `403 Forbidden` - Trade or portfolio belongs to different user
+*(Same as original specification)*
 
 ---
 
-#### 14. Delete Trade
+#### 19. Delete Trade
 
 **DELETE** `/trades/:id`
 
 Deletes a trade.
 
-**Path Parameters:**
-- `id` (required): Trade UUID
-
 **Response:** `204 No Content`
-
-**Error Responses:**
-- `404 Not Found` - Trade does not exist
-- `403 Forbidden` - Trade belongs to different user
 
 ---
 
@@ -738,7 +965,7 @@ All error responses follow this format:
 - `VALIDATION_ERROR` - Request validation failed
 - `NOT_FOUND` - Resource not found
 - `FORBIDDEN` - Insufficient permissions
-- `CONFLICT` - Resource conflict (e.g., duplicate name)
+- `CONFLICT` - Resource conflict (e.g., duplicate ticker)
 - `UNAUTHORIZED` - Authentication required
 - `INTERNAL_ERROR` - Server error
 
@@ -753,6 +980,12 @@ All error responses follow this format:
 - Index on `userId`
 - Unique index on `(userId, name)` for duplicate name prevention
 
+**Positions table:**
+- Primary key on `id`
+- Index on `portfolioId`
+- Unique index on `(portfolioId, ticker)` for duplicate ticker prevention
+- Index on `ticker` for cross-portfolio ticker searches
+
 **Trades table:**
 - Primary key on `id`
 - Index on `userId`
@@ -763,8 +996,9 @@ All error responses follow this format:
 
 ### Foreign Keys
 
+- `positions.portfolioId` → `portfolios.id` (CASCADE DELETE)
+- `trades.portfolioId` → `portfolios.id` (SET NULL) - trades can be orphaned
 - `trades.userId` → `users.id` (CASCADE DELETE)
-- `trades.portfolioId` → `portfolios.id` (SET NULL or CASCADE based on orphanTrades parameter)
 - `portfolios.userId` → `users.id` (CASCADE DELETE)
 
 ---
@@ -773,8 +1007,14 @@ All error responses follow this format:
 
 ### Server-Side Calculation Requirements
 
-**CRITICAL:** The server MUST calculate the following fields and reject any client-provided values:
+**CRITICAL:** The server MUST calculate the following fields:
 
+**Positions:**
+1. `averageCost` - Calculate from costBasis / shares
+2. `marketValue` - Calculate from shares × currentPrice (if price available)
+3. `unrealizedPL` - Calculate from marketValue - costBasis (if price available)
+
+**Trades:**
 1. `openTotalCost` - Calculate from openAction, openPremium, openQuantity, openCommission
 2. `closeTotalCost` - Calculate from closeAction, closePremium, closeQuantity, closeCommission
 3. `profitLoss` - Calculate from openAction, openTotalCost, closeTotalCost
@@ -783,189 +1023,190 @@ All error responses follow this format:
 
 ### Validation Requirements
 
-**Trade Closing Validation:**
-1. Verify trade is open before allowing close operation
-2. Ensure closeTradeDate >= openTradeDate
-3. Ensure closeTradeDate is not in the future
-4. Automatically set closeAction based on openAction:
-   - BUY_TO_OPEN → SELL_TO_CLOSE
-   - SELL_TO_OPEN → BUY_TO_CLOSE
-5. Set closeQuantity equal to openQuantity
+**Position Validation:**
+1. Ticker must be unique within portfolio
+2. Shares must be > 0
+3. Cost basis must be > 0
+4. Current price must be > 0 if provided
 
-**Portfolio Assignment Validation:**
-1. Verify portfolio exists
-2. Verify portfolio belongs to authenticated user
-3. Allow null portfolioId (unassigned trades)
-
-### Query Optimization
-
-**Default Sorting:**
-- Open trades: Sort by expiration date ASC (expiring soonest first), then openTradeDate ASC
-- Closed trades: Sort by closeTradeDate DESC (most recent first)
-
-**Pagination:**
-- Default limit: 100
-- Maximum limit: 1000
-
-### Cache Invalidation
-
-When implementing with a cache layer, invalidate:
-- Portfolio queries when portfolio is created/updated/deleted
-- Trade queries when trade is created/updated/deleted
-- Portfolio stats when associated trades change
-- Portfolio trade queries when trades are assigned/unassigned
+**Portfolio Deletion:**
+1. Must handle positions (delete or reject if has positions)
+2. Must handle trades (orphan or keep references)
 
 ---
 
 ## Example Workflows
 
-### Workflow 1: Open and Close a Long Call
+### Workflow 1: Create Portfolio with Positions
 
 **Step 1:** Create portfolio
 ```
 POST /portfolios
 {
-  "name": "Tech Options",
-  "description": "Technology sector trades"
+  "name": "Tech Growth Portfolio",
+  "description": "High-growth tech stocks"
 }
 ```
 
-**Step 2:** Open a long call position
+**Step 2:** Add first position
 ```
-POST /trades
+POST /portfolios/{id}/positions
 {
-  "portfolioId": "uuid",
-  "symbol": "AAPL",
-  "optionType": "call",
-  "strikePrice": 150.00,
-  "expirationDate": "2024-12-20",
-  "openAction": "buy_to_open",
-  "openQuantity": 2,
-  "openPremium": 2.50,
-  "openCommission": 0.65,
-  "openTradeDate": "2024-01-10"
+  "ticker": "AAPL",
+  "shares": 100,
+  "costBasis": 15000.00,
+  "currentPrice": 175.50
 }
 
 Server calculates:
-- openTotalCost = (2.50 × 2 × 100) + 0.65 = $500.65
-- status = "open"
+- averageCost = 15000.00 / 100 = $150.00
+- marketValue = 100 × 175.50 = $17,550.00
+- unrealizedPL = 17550.00 - 15000.00 = $2,550.00
 ```
 
-**Step 3:** Close the position for profit
+**Step 3:** Add more positions
 ```
-PUT /trades/{id}/close
+POST /portfolios/{id}/positions
 {
-  "closePremium": 3.50,
-  "closeCommission": 0.65,
-  "closeTradeDate": "2024-02-10"
+  "ticker": "GOOGL",
+  "shares": 50,
+  "costBasis": 7000.00,
+  "currentPrice": 140.25
 }
-
-Server calculates:
-- closeAction = "sell_to_close" (derived from openAction)
-- closeQuantity = 2 (matches openQuantity)
-- closeTotalCost = (3.50 × 2 × 100) - 0.65 = $699.35
-- profitLoss = 699.35 - 500.65 = $198.70
-- status = "closed"
 ```
 
-**Step 4:** View portfolio statistics
+**Step 4:** Get portfolio summary
 ```
-GET /portfolios/{id}/stats
+GET /portfolios/{id}?includePositions=true&includeMetrics=true
 
-Returns:
-{
-  "totalTrades": 1,
-  "closedTradesCount": 1,
-  "totalProfitLoss": 198.70,
-  "winRate": 100.0,
-  "winningTrades": 1,
-  ...
-}
+Returns full portfolio with all positions and aggregated metrics
 ```
 
 ---
 
-### Workflow 2: Open and Close a Short Put
+### Workflow 2: Update Position Prices
 
-**Step 1:** Open a short put position (credit)
+**Step 1:** Update prices for all positions (e.g., end-of-day update)
+```
+PATCH /portfolios/{id}/positions/prices
+{
+  "prices": [
+    { "ticker": "AAPL", "currentPrice": 178.25 },
+    { "ticker": "GOOGL", "currentPrice": 142.50 }
+  ]
+}
+
+Server recalculates for each:
+- marketValue = shares × new currentPrice
+- unrealizedPL = marketValue - costBasis
+```
+
+**Step 2:** Get updated portfolio metrics
+```
+GET /portfolios/{id}?includeMetrics=true
+
+Returns updated totalMarketValue, totalUnrealizedPL, etc.
+```
+
+---
+
+### Workflow 3: Portfolio with Associated Trades
+
+**Step 1:** Create portfolio with positions
+```
+POST /portfolios
+{
+  "name": "AAPL Growth",
+  "description": "AAPL shares + options strategy"
+}
+
+POST /portfolios/{id}/positions
+{
+  "ticker": "AAPL",
+  "shares": 100,
+  "costBasis": 15000.00
+}
+```
+
+**Step 2:** Create options trade associated with portfolio
 ```
 POST /trades
 {
-  "portfolioId": "uuid",
-  "symbol": "TSLA",
-  "optionType": "put",
-  "strikePrice": 200.00,
+  "portfolioId": "{portfolio-id}",
+  "symbol": "AAPL",
+  "optionType": "call",
+  "strikePrice": 180.00,
   "expirationDate": "2024-12-20",
-  "openAction": "sell_to_open",
-  "openQuantity": 1,
-  "openPremium": 5.00,
+  "openAction": "sell_to_open",  // covered call
+  "openQuantity": 1,  // 1 contract covers 100 shares
+  "openPremium": 3.50,
   "openCommission": 0.65,
   "openTradeDate": "2024-01-15"
 }
-
-Server calculates:
-- openTotalCost = (5.00 × 1 × 100) - 0.65 = $499.35 (credit)
-- status = "open"
 ```
 
-**Step 2:** Close the position (buy back)
+**Step 3:** View portfolio with positions and trades
 ```
-PUT /trades/{id}/close
-{
-  "closePremium": 2.00,
-  "closeCommission": 0.65,
-  "closeTradeDate": "2024-02-15"
-}
+GET /portfolios/{id}?includePositions=true&includeTrades=true
 
-Server calculates:
-- closeAction = "buy_to_close" (derived from openAction)
-- closeQuantity = 1 (matches openQuantity)
-- closeTotalCost = (2.00 × 1 × 100) + 0.65 = $200.65 (debit)
-- profitLoss = 499.35 - 200.65 = $298.70 (profit on short)
-- status = "closed"
+Returns:
+- Position: 100 AAPL shares
+- Associated trades: 1 open covered call
 ```
 
 ---
 
 ## Testing Checklist
 
-### Calculation Tests
-- [ ] BUY_TO_OPEN cost calculation with various premiums/quantities
-- [ ] SELL_TO_OPEN cost calculation with various premiums/quantities
-- [ ] SELL_TO_CLOSE cost calculation
-- [ ] BUY_TO_CLOSE cost calculation
-- [ ] Long position P&L (profit and loss scenarios)
-- [ ] Short position P&L (profit and loss scenarios)
-- [ ] Commission impacts on all calculations
+### Position Tests
+- [ ] Create position with all fields
+- [ ] Create position with minimal fields (no current price)
+- [ ] Update position shares/cost basis (recalculate averageCost)
+- [ ] Update position current price (recalculate market value and P&L)
+- [ ] Batch update prices for multiple positions
+- [ ] Cannot create duplicate ticker in portfolio
+- [ ] Position calculations are accurate (averageCost, marketValue, unrealizedPL)
+- [ ] Fractional shares support (e.g., 10.5 shares)
 
-### Validation Tests
-- [ ] Cannot close already-closed trade
-- [ ] Cannot close with invalid closeTradeDate
-- [ ] Cannot assign to non-existent portfolio
-- [ ] Cannot assign to another user's portfolio
-- [ ] Portfolio name uniqueness per user
-- [ ] Field length limits (name, description, notes)
-- [ ] Numeric field constraints (> 0 where required)
+### Portfolio Tests
+- [ ] Create portfolio
+- [ ] List portfolios with/without summaries
+- [ ] Get portfolio with all optional data (positions, metrics, trades)
+- [ ] Update portfolio details
+- [ ] Delete empty portfolio
+- [ ] Delete portfolio with positions (cascade delete)
+- [ ] Reject delete if portfolio has positions and deletePositions=false
+- [ ] Portfolio metrics calculations are accurate
+- [ ] Cannot create duplicate portfolio name for same user
+
+### Portfolio-Position Integration
+- [ ] Adding position updates portfolio metrics
+- [ ] Deleting position updates portfolio metrics
+- [ ] Updating position price updates portfolio metrics
+- [ ] Top gainer/loser calculations are correct
+- [ ] Empty portfolio has zero metrics
+
+### Trade-Portfolio Association
+- [ ] Create trade with portfolioId
+- [ ] Create trade without portfolioId (unassigned)
+- [ ] List trades by portfolio
+- [ ] Update trade portfolioId (reassign)
+- [ ] Delete portfolio orphans associated trades
+- [ ] Portfolio trade summary counts are accurate
 
 ### Authorization Tests
 - [ ] Cannot access another user's portfolios
+- [ ] Cannot access positions in another user's portfolio
 - [ ] Cannot access another user's trades
-- [ ] Cannot assign trades to another user's portfolio
 - [ ] Proper 401/403 responses
 
-### Statistics Tests
-- [ ] Win rate calculation with various scenarios
-- [ ] Last 30 days filtering
-- [ ] Average win/loss calculations
-- [ ] Total capital deployed for open positions only
-
 ### Edge Cases
-- [ ] Deleting portfolio with orphan vs cascade
-- [ ] Unassigning trade from portfolio (set portfolioId to null)
-- [ ] Reassigning trade to different portfolio
-- [ ] Zero commission trades
-- [ ] Zero premium trades (unusual but possible)
-- [ ] Same-day open and close
+- [ ] Position with zero current price (no market value/P&L)
+- [ ] Very small fractional shares (e.g., 0.001 shares)
+- [ ] Very large position values
+- [ ] Negative cost basis (not allowed)
+- [ ] Negative shares (not allowed)
+- [ ] Portfolio with 1000+ positions (performance)
 
 ---
 
@@ -973,19 +1214,32 @@ Server calculates:
 
 Consider these additions in future versions:
 
-1. **Multi-leg strategies:** Support for spreads (bull call, iron condor, etc.)
-2. **Partial closes:** Allow closing portion of position
-3. **Adjustments:** Track rolled positions and adjustments
-4. **Performance charts:** Time-series P&L data endpoints
-5. **Tax reporting:** Cost basis, wash sale tracking, tax lot selection
-6. **Import/export:** CSV/Excel import for bulk trade entry
-7. **Alerts:** Price alerts, expiration reminders
-8. **Greeks:** Delta, theta, implied volatility tracking
-9. **Benchmarking:** Compare portfolio performance to indices
-10. **Tags/labels:** Categorize trades beyond portfolios
+**Position Features:**
+1. **Position history** - Track adds/sells over time with lot tracking
+2. **Cost basis methods** - FIFO, LIFO, average cost, specific lot
+3. **Dividend tracking** - Record dividends received per position
+4. **Tax lots** - Track individual purchase lots for tax reporting
+5. **Corporate actions** - Stock splits, mergers, spinoffs
+6. **Real-time pricing** - Integration with market data providers
+7. **Price alerts** - Notify when position reaches target price
+
+**Portfolio Features:**
+1. **Asset allocation** - Sector breakdown, position weighting
+2. **Performance metrics** - Sharpe ratio, beta, alpha
+3. **Benchmarking** - Compare to S&P 500, etc.
+4. **Rebalancing** - Suggest trades to maintain target allocation
+5. **Dividend summary** - Total dividends by portfolio
+6. **Risk metrics** - Portfolio volatility, correlation matrix
+
+**Integration:**
+1. **Trade-to-Position** - Close options trade into stock position (e.g., assignment)
+2. **Covered calls** - Link positions with corresponding options
+3. **Import** - Import positions from brokerage (CSV, API)
+4. **Export** - Export for tax software (TurboTax, etc.)
 
 ---
 
 ## Version History
 
-- **v1.0** - Initial specification (2024-01-15)
+- **v2.0** - Position-based portfolio model (2024-01-29)
+- **v1.0** - Initial trade-based specification (2024-01-15)

@@ -41,6 +41,25 @@ export const useUpdatePortfolio = () => {
   });
 };
 
+export const useDefaultPortfolio = () => {
+  return useQuery({
+    queryKey: ['portfolios', 'default'],
+    queryFn: () => portfoliosService.getDefault(),
+  });
+};
+
+export const useSetDefaultPortfolio = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => portfoliosService.setDefault(id),
+    onSuccess: () => {
+      // Invalidate all portfolio queries to update isDefault flags
+      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+    },
+  });
+};
+
 export const useDeletePortfolio = () => {
   const queryClient = useQueryClient();
 

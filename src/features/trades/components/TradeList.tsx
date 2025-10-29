@@ -39,6 +39,17 @@ const calculateDaysInTrade = (openDate: string, closeDate: string): number => {
   return diffDays;
 };
 
+// Helper function to calculate days in trade for open positions (from open date to today)
+const calculateDaysInOpenTrade = (openDate: string): number => {
+  const open = new Date(openDate);
+  open.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - open.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
 export const TradeList = () => {
   const { data: trades, isLoading } = useTrades();
   const { canEditTrade, canDeleteTrade } = usePermissions();
@@ -158,6 +169,7 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Premium</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Days</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -241,6 +253,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
   };
 
   const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
+  const daysInTrade = calculateDaysInOpenTrade(trade.openTradeDate);
   const getDTEColor = (dte: number) => {
     if (dte < 0) return '#dc3545'; // Red - expired
     if (dte <= 7) return '#ff6b6b'; // Light red - expiring soon
@@ -276,6 +289,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
         {formatCurrency(trade.openTotalCost)}
       </td>
       <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
+      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{daysInTrade}</td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
           <Link
