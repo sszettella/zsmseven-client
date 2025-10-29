@@ -15,6 +15,11 @@ const calculateDaysToExpiration = (expirationDate: string): number => {
   return diffDays;
 };
 
+// Helper function to format strike price without cents
+const formatStrikePrice = (price: number): string => {
+  return `$${Math.round(price)}`;
+};
+
 export const TradeList = () => {
   const { data: trades, isLoading } = useTrades();
   const { canEditTrade, canDeleteTrade } = usePermissions();
@@ -142,6 +147,7 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Open</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Close</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>% G/L</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Closed</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
                   </tr>
@@ -210,7 +216,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
           {trade.optionType.toUpperCase()}
         </span>
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatCurrency(trade.strikePrice)}</td>
+      <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
       <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
         {daysToExpiration}
@@ -271,6 +277,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
 
   const profitLoss = trade.profitLoss || 0;
   const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
+  const percentGainLoss = getPercentGainLoss(trade);
 
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
@@ -288,7 +295,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
           {trade.optionType.toUpperCase()}
         </span>
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatCurrency(trade.strikePrice)}</td>
+      <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
       <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', color: '#999' }}>
         {daysToExpiration}
@@ -304,6 +311,16 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
         }}
       >
         {profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)}
+      </td>
+      <td
+        style={{
+          padding: '0.75rem',
+          textAlign: 'right',
+          fontWeight: 'bold',
+          color: percentGainLoss >= 0 ? '#28a745' : '#dc3545',
+        }}
+      >
+        {percentGainLoss >= 0 ? '+' : ''}{percentGainLoss.toFixed(1)}%
       </td>
       <td style={{ padding: '0.75rem' }}>
         {trade.closeTradeDate ? new Date(trade.closeTradeDate).toLocaleDateString() : 'N/A'}
@@ -335,4 +352,12 @@ const getWinPercentage = (trades: Trade[]): number => {
   if (trades.length === 0) return 0;
   const winningTrades = trades.filter((trade) => (trade.profitLoss || 0) > 0).length;
   return (winningTrades / trades.length) * 100;
+};
+
+// Helper function to calculate percent gain/loss
+const getPercentGainLoss = (trade: Trade): number => {
+  const openCost = Math.abs(trade.openTotalCost);
+  if (openCost === 0) return 0;
+  const profitLoss = trade.profitLoss || 0;
+  return (profitLoss / openCost) * 100;
 };
