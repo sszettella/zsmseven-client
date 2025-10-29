@@ -62,6 +62,18 @@ export const TradeList = () => {
           <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{closedTrades.length}</div>
         </div>
         <div className="card" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.875rem', color: '#666' }}>Win Rate</div>
+          <div
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              color: getWinPercentage(closedTrades) >= 50 ? '#28a745' : '#dc3545',
+            }}
+          >
+            {closedTrades.length > 0 ? `${getWinPercentage(closedTrades).toFixed(1)}%` : 'N/A'}
+          </div>
+        </div>
+        <div className="card" style={{ padding: '1rem' }}>
           <div style={{ fontSize: '0.875rem', color: '#666' }}>Total P/L</div>
           <div
             style={{
@@ -316,4 +328,11 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
 // Helper function to calculate total P/L
 const getTotalPL = (trades: Trade[]): number => {
   return trades.reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+};
+
+// Helper function to calculate win percentage
+const getWinPercentage = (trades: Trade[]): number => {
+  if (trades.length === 0) return 0;
+  const winningTrades = trades.filter((trade) => (trade.profitLoss || 0) > 0).length;
+  return (winningTrades / trades.length) * 100;
 };
