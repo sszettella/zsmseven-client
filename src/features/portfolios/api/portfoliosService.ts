@@ -41,7 +41,9 @@ export const portfoliosService = {
   },
 
   setDefault: async (id: string): Promise<Portfolio> => {
-    const { data } = await apiClient.post<Portfolio>(`/portfolios/${id}/set-default`);
+    // According to API spec, set default by updating the portfolio with isDefault: true
+    // The server automatically unsets isDefault on all other user portfolios
+    const { data } = await apiClient.put<Portfolio>(`/portfolios/${id}`, { isDefault: true });
     // API returns portfolio directly according to spec
     return data;
   },

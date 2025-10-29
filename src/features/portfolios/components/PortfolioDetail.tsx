@@ -1,49 +1,19 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePortfolio } from '../hooks/usePortfolios';
+import { usePortfolioPositions, useDeletePosition } from '../hooks/usePositions';
 import { formatDate } from '@/shared/utils/formatters';
 import { PositionList } from './PositionList';
-import { Position } from '@/types/position';
 
 export const PortfolioDetail = () => {
   const { portfolioId } = useParams<{ portfolioId: string }>();
   const { data: portfolio, isLoading: portfolioLoading } = usePortfolio(portfolioId!);
-
-  // TODO: Replace with actual API hook when positions API is implemented
-  const [positions] = useState<Position[]>([
-    // Mock data for demonstration
-    {
-      id: '1',
-      portfolioId: portfolioId!,
-      ticker: 'AAPL',
-      shares: 100,
-      costBasis: 15000,
-      averageCost: 150,
-      currentPrice: 175.50,
-      marketValue: 17550,
-      unrealizedPL: 2550,
-      notes: 'Added during tech dip',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      portfolioId: portfolioId!,
-      ticker: 'GOOGL',
-      shares: 50,
-      costBasis: 7000,
-      averageCost: 140,
-      currentPrice: 142.50,
-      marketValue: 7125,
-      unrealizedPL: 125,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ]);
+  const { data: positions, isLoading: positionsLoading } = usePortfolioPositions(portfolioId!);
+  const { mutate: deletePosition } = useDeletePosition();
 
   const [showTradesSection, setShowTradesSection] = useState(false);
 
-  if (portfolioLoading) {
+  if (portfolioLoading || positionsLoading) {
     return <div className="loading">Loading...</div>;
   }
 
@@ -52,8 +22,9 @@ export const PortfolioDetail = () => {
   }
 
   const handleDeletePosition = (positionId: string) => {
-    // TODO: Implement delete position API call
-    console.log('Delete position:', positionId);
+    if (confirm('Are you sure you want to delete this position?')) {
+      deletePosition(positionId);
+    }
   };
 
   return (
@@ -102,7 +73,7 @@ export const PortfolioDetail = () => {
       <div style={{ marginBottom: '2rem' }}>
         <PositionList
           portfolioId={portfolioId!}
-          positions={positions}
+          positions={positions || []}
           onDeletePosition={handleDeletePosition}
         />
       </div>

@@ -7,6 +7,7 @@ import { Dashboard } from '@/features/portfolios/components/Dashboard';
 import { PortfolioList } from '@/features/portfolios/components/PortfolioList';
 import { PortfolioDetail } from '@/features/portfolios/components/PortfolioDetail';
 import { CreatePortfolio } from '@/features/portfolios/components/CreatePortfolio';
+import { EditPortfolio } from '@/features/portfolios/components/EditPortfolio';
 import { TradeForm } from '@/features/trades/components/TradeForm';
 import { TradeList } from '@/features/trades/components/TradeList';
 import { CloseTradeForm } from '@/features/trades/components/CloseTradeForm';
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
           {
             path: ':portfolioId',
             element: <PortfolioDetail />,
+          },
+          {
+            path: ':portfolioId/edit',
+            element: <EditPortfolio />,
           },
           {
             path: ':portfolioId/trades/new',

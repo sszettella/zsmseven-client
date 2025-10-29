@@ -1,15 +1,12 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolios, useDeletePortfolio, useSetDefaultPortfolio } from '../hooks/usePortfolios';
-import { PortfolioForm } from './PortfolioForm';
 import { formatDate } from '@/shared/utils/formatters';
 
 export const PortfolioList = () => {
+  const navigate = useNavigate();
   const { data: portfolios, isLoading, error } = usePortfolios();
   const { mutate: deletePortfolio } = useDeletePortfolio();
   const { mutate: setDefaultPortfolio } = useSetDefaultPortfolio();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (isLoading) return <div className="loading">Loading portfolios...</div>;
   if (error) return <div>Error loading portfolios</div>;
@@ -20,36 +17,16 @@ export const PortfolioList = () => {
         <h1>My Portfolios</h1>
         <button
           className="btn btn-primary"
-          onClick={() => setShowCreateForm(true)}
+          onClick={() => navigate('/portfolios/new')}
         >
           Create Portfolio
         </button>
       </div>
 
-      {showCreateForm && (
-        <div className="card" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Create New Portfolio</h3>
-          <PortfolioForm
-            onSuccess={() => setShowCreateForm(false)}
-            onCancel={() => setShowCreateForm(false)}
-          />
-        </div>
-      )}
-
       <div style={{ display: 'grid', gap: '1rem' }}>
         {portfolios?.map((portfolio) => (
           <div key={portfolio.id} className="card">
-            {editingId === portfolio.id ? (
-              <>
-                <h3 style={{ marginBottom: '1rem' }}>Edit Portfolio</h3>
-                <PortfolioForm
-                  portfolio={portfolio}
-                  onSuccess={() => setEditingId(null)}
-                  onCancel={() => setEditingId(null)}
-                />
-              </>
-            ) : (
-              <>
+            <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
@@ -107,7 +84,7 @@ export const PortfolioList = () => {
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                       className="btn btn-secondary"
-                      onClick={() => setEditingId(portfolio.id)}
+                      onClick={() => navigate(`/portfolios/${portfolio.id}/edit`)}
                     >
                       Edit
                     </button>
@@ -124,7 +101,6 @@ export const PortfolioList = () => {
                   </div>
                 </div>
               </>
-            )}
           </div>
         ))}
       </div>
@@ -136,7 +112,7 @@ export const PortfolioList = () => {
           </p>
           <button
             className="btn btn-primary"
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => navigate('/portfolios/new')}
           >
             Create Your First Portfolio
           </button>

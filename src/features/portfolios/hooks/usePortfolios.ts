@@ -53,9 +53,13 @@ export const useSetDefaultPortfolio = () => {
 
   return useMutation({
     mutationFn: (id: string) => portfoliosService.setDefault(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       // Invalidate all portfolio queries to update isDefault flags
       queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+      // Invalidate the default portfolio query
+      queryClient.invalidateQueries({ queryKey: ['portfolios', 'default'] });
+      // Invalidate the specific portfolio that was updated
+      queryClient.invalidateQueries({ queryKey: ['portfolio', id] });
     },
   });
 };
