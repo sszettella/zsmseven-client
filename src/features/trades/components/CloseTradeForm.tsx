@@ -83,6 +83,13 @@ export const CloseTradeForm = ({ trade, portfolioId }: CloseTradeFormProps) => {
       .join(' ');
   };
 
+  // Helper function to format date without timezone issues
+  const formatDate = (dateString: string): string => {
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString();
+  };
+
   return (
     <div>
       <h2 style={{ marginBottom: '1.5rem' }}>Close Trade</h2>
@@ -105,7 +112,7 @@ export const CloseTradeForm = ({ trade, portfolioId }: CloseTradeFormProps) => {
           </div>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#666' }}>Expiration</div>
-            <div style={{ fontWeight: 'bold' }}>{new Date(trade.expirationDate).toLocaleDateString()}</div>
+            <div style={{ fontWeight: 'bold' }}>{formatDate(trade.expirationDate)}</div>
           </div>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#666' }}>Action</div>

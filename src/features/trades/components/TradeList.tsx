@@ -5,12 +5,12 @@ import { usePermissions } from '@/shared/hooks/usePermissions';
 import { TradeStatus, Trade } from '@/types/trade';
 
 // Helper function to calculate days to expiration
-const calculateDaysToExpiration = (expirationDate: string): number => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+const calculateDaysToExpiration = (expirationDate: string, fromDate?: string): number => {
+  const referenceDate = fromDate ? new Date(fromDate) : new Date();
+  referenceDate.setHours(0, 0, 0, 0);
   const expDate = new Date(expirationDate);
   expDate.setHours(0, 0, 0, 0);
-  const diffTime = expDate.getTime() - today.getTime();
+  const diffTime = expDate.getTime() - referenceDate.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 };
@@ -18,6 +18,25 @@ const calculateDaysToExpiration = (expirationDate: string): number => {
 // Helper function to format strike price without cents
 const formatStrikePrice = (price: number): string => {
   return `$${Math.round(price)}`;
+};
+
+// Helper function to format date without timezone issues
+const formatDate = (dateString: string): string => {
+  // Parse the date string directly without timezone conversion
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  return date.toLocaleDateString();
+};
+
+// Helper function to calculate days in trade
+const calculateDaysInTrade = (openDate: string, closeDate: string): number => {
+  const open = new Date(openDate);
+  open.setHours(0, 0, 0, 0);
+  const close = new Date(closeDate);
+  close.setHours(0, 0, 0, 0);
+  const diffTime = close.getTime() - open.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
 };
 
 export const TradeList = () => {
@@ -45,7 +64,14 @@ export const TradeList = () => {
   }
 
   const openTrades = trades.filter((t) => t.status === TradeStatus.OPEN);
-  const closedTrades = trades.filter((t) => t.status === TradeStatus.CLOSED);
+  const closedTrades = trades
+    .filter((t) => t.status === TradeStatus.CLOSED)
+    .sort((a, b) => {
+      // Sort by close date descending (most recent first)
+      const dateA = a.closeTradeDate ? new Date(a.closeTradeDate).getTime() : 0;
+      const dateB = b.closeTradeDate ? new Date(b.closeTradeDate).getTime() : 0;
+      return dateB - dateA;
+    });
 
   return (
     <div>
@@ -142,13 +168,14 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Symbol</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Exp</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Opened</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Closed</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Days</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Open</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Close</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>% G/L</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Closed</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -217,7 +244,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
         </span>
       </td>
       <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
-      <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
+      <td style={{ padding: '0.75rem' }}>{formatDate(trade.expirationDate)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
         {daysToExpiration}
       </td>
@@ -227,7 +254,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
       <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>
         {formatCurrency(trade.openTotalCost)}
       </td>
-      <td style={{ padding: '0.75rem' }}>{new Date(trade.openTradeDate).toLocaleDateString()}</td>
+      <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
           <Link
@@ -276,8 +303,9 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
   };
 
   const profitLoss = trade.profitLoss || 0;
-  const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
+  const daysToExpiration = calculateDaysToExpiration(trade.expirationDate, trade.closeTradeDate || undefined);
   const percentGainLoss = getPercentGainLoss(trade);
+  const daysInTrade = trade.closeTradeDate ? calculateDaysInTrade(trade.openTradeDate, trade.closeTradeDate) : 0;
 
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
@@ -296,10 +324,14 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
         </span>
       </td>
       <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
-      <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', color: '#999' }}>
         {daysToExpiration}
       </td>
+      <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
+      <td style={{ padding: '0.75rem' }}>
+        {trade.closeTradeDate ? formatDate(trade.closeTradeDate) : 'N/A'}
+      </td>
+      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{daysInTrade}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openTotalCost)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.closeTotalCost || 0)}</td>
       <td
@@ -321,9 +353,6 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
         }}
       >
         {percentGainLoss >= 0 ? '+' : ''}{percentGainLoss.toFixed(1)}%
-      </td>
-      <td style={{ padding: '0.75rem' }}>
-        {trade.closeTradeDate ? new Date(trade.closeTradeDate).toLocaleDateString() : 'N/A'}
       </td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
