@@ -6,9 +6,11 @@ import { Layout } from '@/shared/components/Layout/Layout';
 import { Dashboard } from '@/features/portfolios/components/Dashboard';
 import { PortfolioList } from '@/features/portfolios/components/PortfolioList';
 import { PortfolioDetail } from '@/features/portfolios/components/PortfolioDetail';
+import { CreatePortfolio } from '@/features/portfolios/components/CreatePortfolio';
 import { TradeForm } from '@/features/trades/components/TradeForm';
 import { TradeList } from '@/features/trades/components/TradeList';
 import { CloseTradeForm } from '@/features/trades/components/CloseTradeForm';
+import { ClosedTradeEditForm } from '@/features/trades/components/ClosedTradeEditForm';
 import { UserList } from '@/features/users/components/UserList';
 import { Profile } from '@/features/users/components/Profile';
 import { useTrade } from '@/features/trades/hooks/useTrades';
@@ -36,6 +38,10 @@ export const router = createBrowserRouter([
           {
             index: true,
             element: <PortfolioList />,
+          },
+          {
+            path: 'new',
+            element: <CreatePortfolio />,
           },
           {
             path: ':portfolioId',
@@ -69,6 +75,10 @@ export const router = createBrowserRouter([
           {
             path: ':tradeId/close',
             element: <CloseTradeFormWrapper />,
+          },
+          {
+            path: ':tradeId/view',
+            element: <ClosedTradeEditFormWrapper />,
           },
         ],
       },
@@ -128,4 +138,15 @@ function CloseTradeFormWrapper() {
   }
 
   return <CloseTradeForm trade={trade} />;
+}
+
+function ClosedTradeEditFormWrapper() {
+  const { tradeId } = useParams<{ tradeId: string }>();
+  const { data: trade } = useTrade(tradeId!);
+
+  if (!trade) {
+    return <div className="loading">Loading trade...</div>;
+  }
+
+  return <ClosedTradeEditForm trade={trade} />;
 }

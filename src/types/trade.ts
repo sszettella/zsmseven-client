@@ -84,7 +84,7 @@ export interface CloseTradeData {
   closeTradeDate: string;
 }
 
-// Data for updating an open trade
+// Data for updating an open trade (or closed trade if backend supports it)
 export interface UpdateTradeData {
   portfolioId?: string | null;
   symbol?: string;
@@ -97,6 +97,11 @@ export interface UpdateTradeData {
   openCommission?: number;
   openTradeDate?: string;
   notes?: string;
+  // Closing transaction fields (for updating closed trades)
+  closeAction?: ClosingAction;
+  closePremium?: number;
+  closeCommission?: number;
+  closeTradeDate?: string;
 }
 
 // Helper function to determine valid closing action based on opening action

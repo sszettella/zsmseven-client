@@ -119,6 +119,11 @@ export const TradeList = () => {
           >
             {closedTrades.length > 0 ? `${getWinPercentage(closedTrades).toFixed(1)}%` : 'N/A'}
           </div>
+          {closedTrades.length > 0 && (
+            <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>
+              {closedTrades.filter((trade) => (trade.profitLoss || 0) > 0).length} of {closedTrades.length} {closedTrades.length === 1 ? 'trade' : 'trades'}
+            </div>
+          )}
         </div>
         <div className="card" style={{ padding: '1rem' }}>
           <div style={{ fontSize: '0.875rem', color: '#666' }}>Total P/L</div>
@@ -372,6 +377,14 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
       </td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+          <Link to={`/trades/${trade.id}/view`}>
+            <button
+              className="btn btn-primary"
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+            >
+              Edit
+            </button>
+          </Link>
           {canDelete && (
             <button
               onClick={handleDelete}

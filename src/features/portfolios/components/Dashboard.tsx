@@ -36,6 +36,7 @@ export const Dashboard = () => {
 
   const closedTrades = allTrades?.filter((t) => t.status === TradeStatus.CLOSED) || [];
   const winRate = getWinPercentage(closedTrades);
+  const winningTrades = closedTrades.filter((trade) => (trade.profitLoss || 0) > 0).length;
   const last30DaysTrades = getLast30DaysTrades(closedTrades);
   const last30DaysPL = getLast30DaysPL(closedTrades);
 
@@ -54,7 +55,7 @@ export const Dashboard = () => {
               <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>
                 Win Rate: <span style={{ fontWeight: 'bold', color: winRate >= 50 ? '#28a745' : '#dc3545' }}>
                   {winRate.toFixed(1)}%
-                </span>
+                </span> ({winningTrades} of {closedTrades.length} {closedTrades.length === 1 ? 'trade' : 'trades'})
               </p>
               <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
                 Last 30 Days: <span style={{ fontWeight: 'bold', color: last30DaysPL >= 0 ? '#28a745' : '#dc3545' }}>
@@ -74,17 +75,15 @@ export const Dashboard = () => {
             <Link to="/trades/new" className="btn btn-primary">
               Enter New Trade
             </Link>
+            <Link to="/portfolios/new" className="btn btn-primary">
+              Create New Portfolio
+            </Link>
             <Link to="/trades" className="btn btn-secondary">
               View All Trades
             </Link>
             <Link to="/portfolios" className="btn btn-secondary">
               View All Portfolios
             </Link>
-            {user?.role === 'admin' && (
-              <Link to="/admin/users" className="btn btn-secondary">
-                Manage Users
-              </Link>
-            )}
           </div>
         </div>
 
