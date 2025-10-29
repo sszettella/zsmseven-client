@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { usePortfolios } from '@/features/portfolios/hooks/usePortfolios';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useOpenTrades } from '@/features/trades/hooks/useTrades';
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { data: portfolios } = usePortfolios();
+  const { data: openTrades } = useOpenTrades();
 
   return (
     <div>
@@ -12,12 +12,12 @@ export const Dashboard = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div className="card">
-          <h3 style={{ marginBottom: '0.5rem' }}>Portfolios</h3>
+          <h3 style={{ marginBottom: '0.5rem' }}>Open Trades</h3>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007bff', marginBottom: '1rem' }}>
-            {portfolios?.length || 0}
+            {openTrades?.length || 0}
           </p>
-          <Link to="/portfolios" className="btn btn-primary">
-            Manage Portfolios
+          <Link to="/trades/new" className="btn btn-primary">
+            Create New Trade
           </Link>
         </div>
 

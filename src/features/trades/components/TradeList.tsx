@@ -4,6 +4,17 @@ import { formatCurrency } from '@/shared/utils/calculations';
 import { usePermissions } from '@/shared/hooks/usePermissions';
 import { TradeStatus, Trade } from '@/types/trade';
 
+// Helper function to calculate days to expiration
+const calculateDaysToExpiration = (expirationDate: string): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expDate = new Date(expirationDate);
+  expDate.setHours(0, 0, 0, 0);
+  const diffTime = expDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
 export const TradeList = () => {
   const { data: trades, isLoading } = useTrades();
   const { canEditTrade, canDeleteTrade } = usePermissions();
@@ -77,6 +88,7 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Exp</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Action</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Qty</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Premium</th>
@@ -114,6 +126,7 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Exp</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Open</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Close</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
@@ -161,6 +174,14 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
       .join(' ');
   };
 
+  const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
+  const getDTEColor = (dte: number) => {
+    if (dte < 0) return '#dc3545'; // Red - expired
+    if (dte <= 7) return '#ff6b6b'; // Light red - expiring soon
+    if (dte <= 30) return '#ffa500'; // Orange - expiring this month
+    return '#666'; // Gray - normal
+  };
+
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
       <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{trade.symbol}</td>
@@ -179,6 +200,9 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
       </td>
       <td style={{ padding: '0.75rem' }}>{formatCurrency(trade.strikePrice)}</td>
       <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
+      <td style={{ padding: '0.75rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
+        {daysToExpiration}
+      </td>
       <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{formatAction(trade.openAction)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{trade.openQuantity}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openPremium)}</td>
@@ -234,6 +258,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
   };
 
   const profitLoss = trade.profitLoss || 0;
+  const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
 
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
@@ -253,6 +278,9 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
       </td>
       <td style={{ padding: '0.75rem' }}>{formatCurrency(trade.strikePrice)}</td>
       <td style={{ padding: '0.75rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
+      <td style={{ padding: '0.75rem', textAlign: 'right', color: '#999' }}>
+        {daysToExpiration}
+      </td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openTotalCost)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.closeTotalCost || 0)}</td>
       <td
