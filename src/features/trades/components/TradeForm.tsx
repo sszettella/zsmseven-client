@@ -5,6 +5,8 @@ import { useCreateTrade, useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, formatCurrency } from '@/shared/utils/calculations';
 import { useNavigate } from 'react-router-dom';
+import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
+import { useState } from 'react';
 
 const tradeSchema = z.object({
   symbol: z.string().min(1, 'Symbol is required').max(10, 'Symbol is too long').toUpperCase(),
@@ -28,7 +30,12 @@ interface TradeFormProps {
 
 export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
   const navigate = useNavigate();
-  const { mutate: createTrade, isPending: isCreating } = useCreateTrade(portfolioId);
+  // Track selected portfolio separately from the form
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | undefined>(
+    portfolioId || trade?.portfolioId
+  );
+
+  const { mutate: createTrade, isPending: isCreating } = useCreateTrade(selectedPortfolioId);
   const { mutate: updateTrade, isPending: isUpdating } = useUpdateTrade();
 
   const {
@@ -76,8 +83,9 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
         { tradeId: trade.id, data },
         {
           onSuccess: () => {
-            if (portfolioId) {
-              navigate(`/portfolios/${portfolioId}`);
+            // Navigate to portfolio if one was selected, otherwise to trades list
+            if (selectedPortfolioId) {
+              navigate(`/portfolios/${selectedPortfolioId}`);
             } else {
               navigate('/trades');
             }
@@ -88,8 +96,9 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
       // Create new trade
       createTrade(data, {
         onSuccess: () => {
-          if (portfolioId) {
-            navigate(`/portfolios/${portfolioId}`);
+          // Navigate to portfolio if one was selected, otherwise to trades list
+          if (selectedPortfolioId) {
+            navigate(`/portfolios/${selectedPortfolioId}`);
           } else {
             navigate('/trades');
           }
@@ -107,6 +116,17 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
+        {/* Portfolio Selection - only show if not explicitly set via prop */}
+        {!portfolioId && (
+          <PortfolioSelector
+            value={selectedPortfolioId}
+            onChange={setSelectedPortfolioId}
+            allowNone={true}
+            label="Portfolio"
+            helpText="Optionally associate this trade with a portfolio for organization"
+          />
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           <div className="form-group">
             <label className="form-label" htmlFor="symbol">
@@ -274,7 +294,7 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(portfolioId ? `/portfolios/${portfolioId}` : '/trades')}
+            onClick={() => navigate(selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/trades')}
           >
             Cancel
           </button>
