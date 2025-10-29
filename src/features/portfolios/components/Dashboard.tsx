@@ -11,18 +11,22 @@ const getWinPercentage = (trades: any[]): number => {
   return (winningTrades / trades.length) * 100;
 };
 
-// Helper function to calculate last 30 days P&L
-const getLast30DaysPL = (trades: Trade[]): number => {
+// Helper function to get trades closed in last 30 days
+const getLast30DaysTrades = (trades: Trade[]): Trade[] => {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const recentClosedTrades = trades.filter((trade) => {
+  return trades.filter((trade) => {
     if (!trade.closeTradeDate) return false;
     const closeDate = new Date(trade.closeTradeDate);
     return closeDate >= thirtyDaysAgo;
   });
+};
 
-  return recentClosedTrades.reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
+// Helper function to calculate last 30 days P&L
+const getLast30DaysPL = (trades: Trade[]): number => {
+  const recentTrades = getLast30DaysTrades(trades);
+  return recentTrades.reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
 };
 
 export const Dashboard = () => {
@@ -32,6 +36,7 @@ export const Dashboard = () => {
 
   const closedTrades = allTrades?.filter((t) => t.status === TradeStatus.CLOSED) || [];
   const winRate = getWinPercentage(closedTrades);
+  const last30DaysTrades = getLast30DaysTrades(closedTrades);
   const last30DaysPL = getLast30DaysPL(closedTrades);
 
   return (
@@ -54,7 +59,7 @@ export const Dashboard = () => {
               <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
                 Last 30 Days: <span style={{ fontWeight: 'bold', color: last30DaysPL >= 0 ? '#28a745' : '#dc3545' }}>
                   {last30DaysPL >= 0 ? '+' : ''}{formatCurrency(last30DaysPL)}
-                </span>
+                </span> ({last30DaysTrades.length} {last30DaysTrades.length === 1 ? 'trade' : 'trades'})
               </p>
             </>
           )}
