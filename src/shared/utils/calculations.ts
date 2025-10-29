@@ -1,45 +1,61 @@
-import { OptionAction } from '@/types/trade';
+import { OpeningAction, ClosingAction } from '@/types/trade';
 
 /**
- * Calculate total cost/credit for an option trade
- * For buying (debit): (premium * quantity * 100) + commission
- * For selling (credit): (premium * quantity * 100) - commission
+ * Calculate total cost/credit for an opening transaction
+ * For BUY_TO_OPEN (debit): (premium * quantity * 100) + commission
+ * For SELL_TO_OPEN (credit): (premium * quantity * 100) - commission
  */
-export const calculateTotalCost = (
-  action: OptionAction,
+export const calculateOpenTotalCost = (
+  openAction: OpeningAction,
   premium: number,
   quantity: number,
   commission: number
 ): number => {
   const optionValue = premium * quantity * 100;
 
-  if (
-    action === OptionAction.BUY_TO_OPEN ||
-    action === OptionAction.BUY_TO_CLOSE
-  ) {
-    return optionValue + commission;
+  if (openAction === OpeningAction.BUY_TO_OPEN) {
+    return optionValue + commission; // Debit
   } else {
-    return optionValue - commission;
+    return optionValue - commission; // Credit
+  }
+};
+
+/**
+ * Calculate total cost/credit for a closing transaction
+ * For SELL_TO_CLOSE (credit): (premium * quantity * 100) - commission
+ * For BUY_TO_CLOSE (debit): (premium * quantity * 100) + commission
+ */
+export const calculateCloseTotalCost = (
+  closeAction: ClosingAction,
+  premium: number,
+  quantity: number,
+  commission: number
+): number => {
+  const optionValue = premium * quantity * 100;
+
+  if (closeAction === ClosingAction.SELL_TO_CLOSE) {
+    return optionValue - commission; // Credit
+  } else {
+    return optionValue + commission; // Debit
   }
 };
 
 /**
  * Calculate profit/loss for a closed position
+ * For BUY_TO_OPEN (long): profitLoss = closeTotalCost - openTotalCost
+ * For SELL_TO_OPEN (short): profitLoss = openTotalCost - closeTotalCost
  */
 export const calculateProfitLoss = (
-  openCost: number,
-  closeCost: number,
-  openAction: OptionAction
+  openTotalCost: number,
+  closeTotalCost: number,
+  openAction: OpeningAction
 ): number => {
-  if (
-    openAction === OptionAction.BUY_TO_OPEN ||
-    openAction === OptionAction.BUY_TO_CLOSE
-  ) {
-    // Bought position - profit when sell price > buy price
-    return closeCost - openCost;
+  if (openAction === OpeningAction.BUY_TO_OPEN) {
+    // Long position - profit when sell price > buy price
+    return closeTotalCost - openTotalCost;
   } else {
-    // Sold position - profit when buy back price < sell price
-    return openCost - closeCost;
+    // Short position - profit when buy back price < sell price
+    return openTotalCost - closeTotalCost;
   }
 };
 

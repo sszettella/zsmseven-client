@@ -2,34 +2,34 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateTrade, useUpdateTrade } from '../hooks/useTrades';
-import { OptionTrade, OptionAction, OptionType } from '@/types/trade';
-import { calculateTotalCost, formatCurrency } from '@/shared/utils/calculations';
+import { Trade, OpeningAction, OptionType } from '@/types/trade';
+import { calculateOpenTotalCost, formatCurrency } from '@/shared/utils/calculations';
 import { useNavigate } from 'react-router-dom';
 
 const tradeSchema = z.object({
   symbol: z.string().min(1, 'Symbol is required').max(10, 'Symbol is too long').toUpperCase(),
-  action: z.nativeEnum(OptionAction),
   optionType: z.nativeEnum(OptionType),
   strikePrice: z.number().positive('Strike price must be positive'),
   expirationDate: z.string().min(1, 'Expiration date is required'),
-  quantity: z.number().int().positive('Quantity must be a positive integer'),
-  premium: z.number().positive('Premium must be positive'),
-  commission: z.number().min(0, 'Commission cannot be negative'),
-  tradeDate: z.string().min(1, 'Trade date is required'),
+  openAction: z.nativeEnum(OpeningAction),
+  openQuantity: z.number().int().positive('Quantity must be a positive integer'),
+  openPremium: z.number().positive('Premium must be positive'),
+  openCommission: z.number().min(0, 'Commission cannot be negative'),
+  openTradeDate: z.string().min(1, 'Trade date is required'),
   notes: z.string().optional(),
 });
 
 type TradeFormData = z.infer<typeof tradeSchema>;
 
 interface TradeFormProps {
-  portfolioId?: string; // Optional for standalone trades
-  trade?: OptionTrade;
+  portfolioId?: string;
+  trade?: Trade; // For editing open trades only
 }
 
 export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
   const navigate = useNavigate();
   const { mutate: createTrade, isPending: isCreating } = useCreateTrade(portfolioId);
-  const { mutate: updateTrade, isPending: isUpdating } = useUpdateTrade(portfolioId);
+  const { mutate: updateTrade, isPending: isUpdating } = useUpdateTrade();
 
   const {
     register,
@@ -41,40 +41,41 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
     defaultValues: trade
       ? {
           symbol: trade.symbol,
-          action: trade.action,
           optionType: trade.optionType,
           strikePrice: trade.strikePrice,
           expirationDate: trade.expirationDate.split('T')[0],
-          quantity: trade.quantity,
-          premium: trade.premium,
-          commission: trade.commission,
-          tradeDate: trade.tradeDate.split('T')[0],
+          openAction: trade.openAction,
+          openQuantity: trade.openQuantity,
+          openPremium: trade.openPremium,
+          openCommission: trade.openCommission,
+          openTradeDate: trade.openTradeDate.split('T')[0],
           notes: trade.notes || '',
         }
       : {
-          action: OptionAction.BUY_TO_OPEN,
           optionType: OptionType.CALL,
-          commission: 0,
-          tradeDate: new Date().toISOString().split('T')[0],
+          openAction: OpeningAction.BUY_TO_OPEN,
+          openCommission: 0,
+          openTradeDate: new Date().toISOString().split('T')[0],
         },
   });
 
-  const action = watch('action');
-  const premium = watch('premium');
-  const quantity = watch('quantity');
-  const commission = watch('commission');
+  const openAction = watch('openAction');
+  const openPremium = watch('openPremium');
+  const openQuantity = watch('openQuantity');
+  const openCommission = watch('openCommission');
 
-  const totalCost = premium && quantity && commission !== undefined
-    ? calculateTotalCost(action, premium, quantity, commission)
-    : 0;
+  const openTotalCost =
+    openPremium && openQuantity && openCommission !== undefined
+      ? calculateOpenTotalCost(openAction, openPremium, openQuantity, openCommission)
+      : 0;
 
   const onSubmit = (data: TradeFormData) => {
     if (trade) {
+      // Update existing open trade
       updateTrade(
         { tradeId: trade.id, data },
         {
           onSuccess: () => {
-            // Navigate based on whether we have a portfolioId
             if (portfolioId) {
               navigate(`/portfolios/${portfolioId}`);
             } else {
@@ -84,9 +85,9 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
         }
       );
     } else {
+      // Create new trade
       createTrade(data, {
         onSuccess: () => {
-          // Navigate based on whether we have a portfolioId
           if (portfolioId) {
             navigate(`/portfolios/${portfolioId}`);
           } else {
@@ -102,9 +103,9 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
   return (
     <div>
       <h2 style={{ marginBottom: '1.5rem' }}>
-        {trade ? 'Edit Trade' : 'New Trade'}
+        {trade ? 'Edit Trade' : 'Open New Trade'}
       </h2>
-      
+
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           <div className="form-group">
@@ -119,18 +120,6 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
               placeholder="AAPL"
             />
             {errors.symbol && <p className="error-message">{errors.symbol.message}</p>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="action">
-              Action *
-            </label>
-            <select {...register('action')} id="action" className="form-control">
-              <option value={OptionAction.BUY_TO_OPEN}>Buy to Open</option>
-              <option value={OptionAction.BUY_TO_CLOSE}>Buy to Close</option>
-              <option value={OptionAction.SELL_TO_OPEN}>Sell to Open</option>
-              <option value={OptionAction.SELL_TO_CLOSE}>Sell to Close</option>
-            </select>
           </div>
 
           <div className="form-group">
@@ -176,63 +165,77 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="tradeDate">
-              Trade Date *
+            <label className="form-label" htmlFor="openAction">
+              Opening Action *
+            </label>
+            <select {...register('openAction')} id="openAction" className="form-control">
+              <option value={OpeningAction.BUY_TO_OPEN}>Buy to Open</option>
+              <option value={OpeningAction.SELL_TO_OPEN}>Sell to Open</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="openQuantity">
+              Quantity (Contracts) *
             </label>
             <input
-              {...register('tradeDate')}
-              type="date"
-              id="tradeDate"
+              {...register('openQuantity', { valueAsNumber: true })}
+              type="number"
+              id="openQuantity"
               className="form-control"
+              placeholder="1"
             />
-            {errors.tradeDate && (
-              <p className="error-message">{errors.tradeDate.message}</p>
+            {errors.openQuantity && (
+              <p className="error-message">{errors.openQuantity.message}</p>
             )}
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="quantity">
-              Quantity (Contracts) *
-            </label>
-            <input
-              {...register('quantity', { valueAsNumber: true })}
-              type="number"
-              id="quantity"
-              className="form-control"
-              placeholder="1"
-            />
-            {errors.quantity && <p className="error-message">{errors.quantity.message}</p>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="premium">
+            <label className="form-label" htmlFor="openPremium">
               Premium (per share) *
             </label>
             <input
-              {...register('premium', { valueAsNumber: true })}
+              {...register('openPremium', { valueAsNumber: true })}
               type="number"
               step="0.01"
-              id="premium"
+              id="openPremium"
               className="form-control"
               placeholder="2.50"
             />
-            {errors.premium && <p className="error-message">{errors.premium.message}</p>}
+            {errors.openPremium && (
+              <p className="error-message">{errors.openPremium.message}</p>
+            )}
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="commission">
+            <label className="form-label" htmlFor="openCommission">
               Commission *
             </label>
             <input
-              {...register('commission', { valueAsNumber: true })}
+              {...register('openCommission', { valueAsNumber: true })}
               type="number"
               step="0.01"
-              id="commission"
+              id="openCommission"
               className="form-control"
               placeholder="0.65"
             />
-            {errors.commission && (
-              <p className="error-message">{errors.commission.message}</p>
+            {errors.openCommission && (
+              <p className="error-message">{errors.openCommission.message}</p>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="openTradeDate">
+              Trade Date *
+            </label>
+            <input
+              {...register('openTradeDate')}
+              type="date"
+              id="openTradeDate"
+              className="form-control"
+            />
+            {errors.openTradeDate && (
+              <p className="error-message">{errors.openTradeDate.message}</p>
             )}
           </div>
         </div>
@@ -259,13 +262,11 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
           }}
         >
           <strong>
-            {action === OptionAction.SELL_TO_OPEN || action === OptionAction.SELL_TO_CLOSE
-              ? 'Total Credit: '
-              : 'Total Cost: '}
-            {formatCurrency(totalCost)}
+            {openAction === OpeningAction.SELL_TO_OPEN ? 'Total Credit: ' : 'Total Cost: '}
+            {formatCurrency(openTotalCost)}
           </strong>
           <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
-            = ({premium} × {quantity} × 100) {action.includes('buy') ? '+' : '-'} {commission}
+            = ({openPremium} × {openQuantity} × 100) {openAction === OpeningAction.BUY_TO_OPEN ? '+' : '-'} {openCommission}
           </div>
         </div>
 
@@ -278,7 +279,7 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={isPending}>
-            {isPending ? 'Saving...' : trade ? 'Update Trade' : 'Create Trade'}
+            {isPending ? 'Saving...' : trade ? 'Update Trade' : 'Open Trade'}
           </button>
         </div>
       </form>

@@ -1,75 +1,51 @@
 import { apiClient } from '@/api/client';
-import { OptionTrade, CreateTradeData, UpdateTradeData } from '@/types/trade';
+import { Trade, CreateTradeData, CloseTradeData, UpdateTradeData } from '@/types/trade';
 
 export const tradesService = {
-  // Get all trades for the user (standalone API)
-  getAll: async (): Promise<OptionTrade[]> => {
-    const { data } = await apiClient.get<OptionTrade[]>('/trades');
+  // Get all trades for the user
+  getAll: async (): Promise<Trade[]> => {
+    const { data } = await apiClient.get<Trade[]>('/trades');
     return data;
   },
 
-  // Get trades by portfolio (backward compatibility)
-  getByPortfolio: async (portfolioId: string): Promise<OptionTrade[]> => {
-    const { data } = await apiClient.get<OptionTrade[]>(`/portfolios/${portfolioId}/trades`);
+  // Get only open trades (for close selection)
+  getOpen: async (): Promise<Trade[]> => {
+    const { data } = await apiClient.get<Trade[]>('/trades/open');
     return data;
   },
 
-  // Get trade by ID (standalone API)
-  getById: async (tradeId: string): Promise<OptionTrade> => {
-    const { data } = await apiClient.get<OptionTrade>(`/trades/${tradeId}`);
+  // Get trades by portfolio
+  getByPortfolio: async (portfolioId: string): Promise<Trade[]> => {
+    const { data } = await apiClient.get<Trade[]>(`/portfolios/${portfolioId}/trades`);
     return data;
   },
 
-  // Get trade by ID and portfolio (backward compatibility)
-  getByIdWithPortfolio: async (portfolioId: string, tradeId: string): Promise<OptionTrade> => {
-    const { data } = await apiClient.get<OptionTrade>(
-      `/portfolios/${portfolioId}/trades/${tradeId}`
-    );
+  // Get trade by ID
+  getById: async (tradeId: string): Promise<Trade> => {
+    const { data } = await apiClient.get<Trade>(`/trades/${tradeId}`);
     return data;
   },
 
-  // Create trade (supports both standalone and portfolio-based)
-  create: async (trade: CreateTradeData): Promise<OptionTrade> => {
-    if (trade.portfolioId) {
-      // Use portfolio-scoped endpoint for backward compatibility
-      const { data } = await apiClient.post<OptionTrade>(
-        `/portfolios/${trade.portfolioId}/trades`,
-        trade
-      );
-      return data;
-    } else {
-      // Use standalone endpoint
-      const { data } = await apiClient.post<OptionTrade>('/trades', trade);
-      return data;
-    }
-  },
-
-  // Update trade (standalone API)
-  update: async (tradeId: string, trade: UpdateTradeData): Promise<OptionTrade> => {
-    const { data } = await apiClient.put<OptionTrade>(`/trades/${tradeId}`, trade);
+  // Create new trade (opening transaction)
+  create: async (trade: CreateTradeData): Promise<Trade> => {
+    const { data } = await apiClient.post<Trade>('/trades', trade);
     return data;
   },
 
-  // Update trade with portfolio context (backward compatibility)
-  updateWithPortfolio: async (
-    portfolioId: string,
-    tradeId: string,
-    trade: UpdateTradeData
-  ): Promise<OptionTrade> => {
-    const { data } = await apiClient.put<OptionTrade>(
-      `/portfolios/${portfolioId}/trades/${tradeId}`,
-      trade
-    );
+  // Close an open trade
+  close: async (tradeId: string, closeData: CloseTradeData): Promise<Trade> => {
+    const { data } = await apiClient.put<Trade>(`/trades/${tradeId}/close`, closeData);
     return data;
   },
 
-  // Delete trade (standalone API)
+  // Update open trade details
+  update: async (tradeId: string, trade: UpdateTradeData): Promise<Trade> => {
+    const { data } = await apiClient.put<Trade>(`/trades/${tradeId}`, trade);
+    return data;
+  },
+
+  // Delete trade
   delete: async (tradeId: string): Promise<void> => {
     await apiClient.delete(`/trades/${tradeId}`);
-  },
-
-  // Delete trade with portfolio context (backward compatibility)
-  deleteWithPortfolio: async (portfolioId: string, tradeId: string): Promise<void> => {
-    await apiClient.delete(`/portfolios/${portfolioId}/trades/${tradeId}`);
   },
 };

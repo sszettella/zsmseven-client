@@ -8,6 +8,7 @@ import { PortfolioList } from '@/features/portfolios/components/PortfolioList';
 import { PortfolioDetail } from '@/features/portfolios/components/PortfolioDetail';
 import { TradeForm } from '@/features/trades/components/TradeForm';
 import { TradeList } from '@/features/trades/components/TradeList';
+import { CloseTradeForm } from '@/features/trades/components/CloseTradeForm';
 import { UserList } from '@/features/users/components/UserList';
 import { Profile } from '@/features/users/components/Profile';
 import { useTrade } from '@/features/trades/hooks/useTrades';
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
             path: ':tradeId/edit',
             element: <StandaloneTradeFormWrapper isEdit />,
           },
+          {
+            path: ':tradeId/close',
+            element: <CloseTradeFormWrapper />,
+          },
         ],
       },
       {
@@ -90,13 +95,13 @@ export const router = createBrowserRouter([
 // Wrapper components to handle params
 function TradeFormWrapper({ isEdit }: { isEdit?: boolean }) {
   const { portfolioId, tradeId } = useParams<{ portfolioId: string; tradeId?: string }>();
-  const { data: trade } = useTrade(portfolioId!, tradeId!, { enabled: isEdit && !!tradeId });
+  const { data: trade } = useTrade(tradeId!, { enabled: isEdit && !!tradeId });
 
   if (isEdit && !trade) {
     return <div className="loading">Loading trade...</div>;
   }
 
-  return <TradeForm portfolioId={portfolioId!} trade={isEdit ? trade : undefined} />;
+  return <TradeForm portfolioId={portfolioId} trade={isEdit ? trade : undefined} />;
 }
 
 function TradeListWrapper() {
@@ -105,13 +110,22 @@ function TradeListWrapper() {
 
 function StandaloneTradeFormWrapper({ isEdit }: { isEdit?: boolean }) {
   const { tradeId } = useParams<{ tradeId?: string }>();
-  // For standalone trades, we'll need to fetch the trade without a portfolioId
-  // This will require updating the useTrade hook or creating a new hook
-  const { data: trade } = useTrade(undefined, tradeId!, { enabled: isEdit && !!tradeId });
+  const { data: trade } = useTrade(tradeId!, { enabled: isEdit && !!tradeId });
 
   if (isEdit && !trade) {
     return <div className="loading">Loading trade...</div>;
   }
 
-  return <TradeForm portfolioId={undefined} trade={isEdit ? trade : undefined} />;
+  return <TradeForm trade={isEdit ? trade : undefined} />;
+}
+
+function CloseTradeFormWrapper() {
+  const { tradeId } = useParams<{ tradeId: string }>();
+  const { data: trade } = useTrade(tradeId!);
+
+  if (!trade) {
+    return <div className="loading">Loading trade...</div>;
+  }
+
+  return <CloseTradeForm trade={trade} />;
 }
