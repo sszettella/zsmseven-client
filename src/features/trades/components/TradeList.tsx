@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTrades, useDeleteTrade } from '../hooks/useTrades';
 import { formatCurrency } from '@/shared/utils/calculations';
@@ -54,6 +55,10 @@ export const TradeList = () => {
   const { data: trades, isLoading } = useTrades();
   const { canEditTrade, canDeleteTrade } = usePermissions();
 
+  // Pagination state for closed trades
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   if (isLoading) {
     return <div className="loading">Loading trades...</div>;
   }
@@ -99,6 +104,18 @@ export const TradeList = () => {
       const dateB = b.closeTradeDate ? new Date(b.closeTradeDate).getTime() : 0;
       return dateB - dateA;
     });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(closedTrades.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClosedTrades = closedTrades.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to closed trades section
+    window.scrollTo({ top: document.getElementById('closed-trades-section')?.offsetTop || 0, behavior: 'smooth' });
+  };
 
   return (
     <div>
@@ -191,7 +208,7 @@ export const TradeList = () => {
 
       {/* Closed Trades Table */}
       {closedTrades.length > 0 && (
-        <div>
+        <div id="closed-trades-section">
           <h2 style={{ marginBottom: '1rem' }}>Closed Positions</h2>
           <div className="card">
             <div style={{ overflowX: 'auto' }}>
@@ -213,7 +230,7 @@ export const TradeList = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {closedTrades.map((trade) => (
+                  {paginatedClosedTrades.map((trade) => (
                     <ClosedTradeRow
                       key={trade.id}
                       trade={trade}
@@ -223,6 +240,88 @@ export const TradeList = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem',
+                borderTop: '1px solid #e0e0e0'
+              }}>
+                <div style={{ fontSize: '0.875rem', color: '#666' }}>
+                  Showing {startIndex + 1}-{Math.min(endIndex, closedTrades.length)} of {closedTrades.length} trades
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem',
+                      opacity: currentPage === 1 ? 0.5 : 1,
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Previous
+                  </button>
+
+                  {/* Page Numbers */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    const showPage =
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1);
+
+                    // Show ellipsis
+                    const showEllipsisBefore = page === currentPage - 2 && currentPage > 3;
+                    const showEllipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2;
+
+                    if (showEllipsisBefore || showEllipsisAfter) {
+                      return (
+                        <span key={page} style={{ padding: '0.25rem 0.5rem', color: '#666' }}>
+                          ...
+                        </span>
+                      );
+                    }
+
+                    if (!showPage) return null;
+
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={page === currentPage ? 'btn btn-primary' : 'btn btn-secondary'}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.875rem',
+                          minWidth: '2rem'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem',
+                      opacity: currentPage === totalPages ? 0.5 : 1,
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
