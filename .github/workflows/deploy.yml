@@ -95,6 +95,13 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           git push origin main --follow-tags
 
+      - name: Merge version bump back to develop
+        run: |
+          git fetch origin develop
+          git checkout develop
+          git merge main --no-edit -m "chore: merge version bump from main [skip ci]"
+          git push origin develop
+
       - name: Get version from package.json
         id: package-version
         run: echo "version=${{ steps.bump-version.outputs.version }}" >> $GITHUB_OUTPUT
