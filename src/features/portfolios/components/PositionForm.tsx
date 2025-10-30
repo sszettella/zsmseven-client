@@ -21,6 +21,11 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
     notes: position?.notes || '',
   });
 
+  // Store display value for cost basis to preserve commas
+  const [costBasisDisplay, setCostBasisDisplay] = useState<string>(
+    position?.costBasis ? position.costBasis.toString() : ''
+  );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isPending = isCreating || isUpdating;
 
@@ -160,11 +165,16 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
             </label>
             <input
               id="costBasis"
-              type="number"
-              step="0.01"
-              value={formData.costBasis || ''}
-              onChange={(e) => setFormData({ ...formData, costBasis: parseFloat(e.target.value) })}
-              placeholder="15000.00"
+              type="text"
+              value={costBasisDisplay}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCostBasisDisplay(value);
+                // Remove dollar signs and commas, then parse the number
+                const numericValue = parseFloat(value.replace(/[$,]/g, ''));
+                setFormData({ ...formData, costBasis: isNaN(numericValue) ? 0 : numericValue });
+              }}
+              placeholder="$15,000.00"
               style={{
                 width: '100%',
                 padding: '0.5rem',
