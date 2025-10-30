@@ -174,7 +174,7 @@ export const Dashboard = () => {
           </p>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Link to="/portfolios/new" className="btn btn-primary" style={{ flex: 1 }}>
-              Portfolio
+              Create
             </Link>
             <Link to="/portfolios" className="btn btn-secondary" style={{ flex: 1 }}>
               View All
@@ -189,13 +189,13 @@ export const Dashboard = () => {
             <div style={{ marginBottom: '1rem' }}>
               <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Portfolios</strong>
               <p style={{ fontSize: '0.875rem', color: '#666', margin: 0 }}>
-                <Link to="/portfolios/new" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>Create portfolios</Link> to track your stock and ETF positions with cost basis and current values.
+                <Link to="/portfolios/new" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>Create a portfolio</Link> to track your stock and ETF positions with cost basis and current values.
               </p>
             </div>
             <div>
               <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Options Trades</strong>
               <p style={{ fontSize: '0.875rem', color: '#666', margin: 0 }}>
-                <Link to="/trades/new" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>Open a new position</Link> to track options trades separately. Optionally link them to portfolios for organization.
+                <Link to="/trades/new" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>Open a new position</Link> to track options trades. Optionally link them to portfolios for organization and portfolio-level metrics.
               </p>
             </div>
           </div>
