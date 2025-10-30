@@ -59,6 +59,86 @@ export const TradeList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
+  // Sorting state
+  const [openTradesSortKey, setOpenTradesSortKey] = useState<string>('expirationDate');
+  const [openTradesSortDir, setOpenTradesSortDir] = useState<'asc' | 'desc'>('asc');
+  const [closedTradesSortKey, setClosedTradesSortKey] = useState<string>('closeTradeDate');
+  const [closedTradesSortDir, setClosedTradesSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Sorting handlers
+  const handleOpenTradesSort = (key: string) => {
+    if (openTradesSortKey === key) {
+      setOpenTradesSortDir(openTradesSortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setOpenTradesSortKey(key);
+      setOpenTradesSortDir('asc');
+    }
+  };
+
+  const handleClosedTradesSort = (key: string) => {
+    if (closedTradesSortKey === key) {
+      setClosedTradesSortDir(closedTradesSortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setClosedTradesSortKey(key);
+      setClosedTradesSortDir('asc');
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
+  };
+
+  // Sort indicator component
+  const SortIndicator = ({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }) => (
+    <span style={{ marginLeft: '0.25rem', fontSize: '0.75rem', opacity: active ? 1 : 0.3 }}>
+      {direction === 'asc' ? '▲' : '▼'}
+    </span>
+  );
+
+  // Generic sort function
+  const sortTrades = (tradesArray: Trade[], sortKey: string, sortDir: 'asc' | 'desc'): Trade[] => {
+    return [...tradesArray].sort((a, b) => {
+      let aVal: any = a[sortKey as keyof Trade];
+      let bVal: any = b[sortKey as keyof Trade];
+
+      // Handle special calculated fields
+      if (sortKey === 'daysToExpiration') {
+        aVal = calculateDaysToExpiration(a.expirationDate, a.closeTradeDate || undefined);
+        bVal = calculateDaysToExpiration(b.expirationDate, b.closeTradeDate || undefined);
+      } else if (sortKey === 'daysInTrade') {
+        if (a.status === TradeStatus.OPEN) {
+          aVal = calculateDaysInOpenTrade(a.openTradeDate);
+          bVal = calculateDaysInOpenTrade(b.openTradeDate);
+        } else {
+          aVal = a.closeTradeDate ? calculateDaysInTrade(a.openTradeDate, a.closeTradeDate) : 0;
+          bVal = b.closeTradeDate ? calculateDaysInTrade(b.openTradeDate, b.closeTradeDate) : 0;
+        }
+      } else if (sortKey === 'percentGainLoss') {
+        aVal = getPercentGainLoss(a);
+        bVal = getPercentGainLoss(b);
+      }
+
+      // Handle date fields
+      if (sortKey === 'expirationDate' || sortKey === 'openTradeDate' || sortKey === 'closeTradeDate') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // Handle string fields
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+
+      if (sortDir === 'asc') {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+  };
+
   if (isLoading) {
     return <div className="loading">Loading trades...</div>;
   }
@@ -79,31 +159,17 @@ export const TradeList = () => {
     );
   }
 
-  const openTrades = trades
-    .filter((t) => t.status === TradeStatus.OPEN)
-    .sort((a, b) => {
-      // First, sort by DTE ascending (lowest/expiring soonest first)
-      const dteA = calculateDaysToExpiration(a.expirationDate);
-      const dteB = calculateDaysToExpiration(b.expirationDate);
+  const openTrades = sortTrades(
+    trades.filter((t) => t.status === TradeStatus.OPEN),
+    openTradesSortKey,
+    openTradesSortDir
+  );
 
-      if (dteA !== dteB) {
-        return dteA - dteB;
-      }
-
-      // If DTE is the same, sort by open date (oldest first)
-      const dateA = new Date(a.openTradeDate).getTime();
-      const dateB = new Date(b.openTradeDate).getTime();
-      return dateA - dateB;
-    });
-
-  const closedTrades = trades
-    .filter((t) => t.status === TradeStatus.CLOSED)
-    .sort((a, b) => {
-      // Sort by close date descending (most recent first)
-      const dateA = a.closeTradeDate ? new Date(a.closeTradeDate).getTime() : 0;
-      const dateB = b.closeTradeDate ? new Date(b.closeTradeDate).getTime() : 0;
-      return dateB - dateA;
-    });
+  const closedTrades = sortTrades(
+    trades.filter((t) => t.status === TradeStatus.CLOSED),
+    closedTradesSortKey,
+    closedTradesSortDir
+  );
 
   // Pagination calculations
   const totalPages = Math.ceil(closedTrades.length / itemsPerPage);
@@ -173,21 +239,81 @@ export const TradeList = () => {
           <h2 style={{ marginBottom: '1rem' }}>Open Positions</h2>
           <div className="card">
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Symbol</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Exp</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Qty</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Premium</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Days</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Portfolio</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
+                  <tr style={{ borderBottom: '2px solid #e0e0e0', backgroundColor: '#f8f9fa' }}>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('symbol')}
+                    >
+                      Symbol
+                      <SortIndicator active={openTradesSortKey === 'symbol'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('optionType')}
+                    >
+                      Type
+                      <SortIndicator active={openTradesSortKey === 'optionType'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('strikePrice')}
+                    >
+                      Strike
+                      <SortIndicator active={openTradesSortKey === 'strikePrice'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('expirationDate')}
+                    >
+                      Exp
+                      <SortIndicator active={openTradesSortKey === 'expirationDate'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('daysToExpiration')}
+                    >
+                      DTE
+                      <SortIndicator active={openTradesSortKey === 'daysToExpiration'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('openQuantity')}
+                    >
+                      Qty
+                      <SortIndicator active={openTradesSortKey === 'openQuantity'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('openPremium')}
+                    >
+                      Premium
+                      <SortIndicator active={openTradesSortKey === 'openPremium'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('openTotalCost')}
+                    >
+                      Total
+                      <SortIndicator active={openTradesSortKey === 'openTotalCost'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('openTradeDate')}
+                    >
+                      Date
+                      <SortIndicator active={openTradesSortKey === 'openTradeDate'} direction={openTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleOpenTradesSort('daysInTrade')}
+                    >
+                      Days
+                      <SortIndicator active={openTradesSortKey === 'daysInTrade'} direction={openTradesSortDir} />
+                    </th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Portfolio</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,21 +338,81 @@ export const TradeList = () => {
           <h2 style={{ marginBottom: '1rem' }}>Closed Positions</h2>
           <div className="card">
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Symbol</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Opened</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Closed</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Days</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Open</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Close</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>% G/L</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Portfolio</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
+                  <tr style={{ borderBottom: '2px solid #e0e0e0', backgroundColor: '#f8f9fa' }}>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('symbol')}
+                    >
+                      Symbol
+                      <SortIndicator active={closedTradesSortKey === 'symbol'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('optionType')}
+                    >
+                      Type
+                      <SortIndicator active={closedTradesSortKey === 'optionType'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('daysToExpiration')}
+                    >
+                      DTE
+                      <SortIndicator active={closedTradesSortKey === 'daysToExpiration'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('openTradeDate')}
+                    >
+                      Opened
+                      <SortIndicator active={closedTradesSortKey === 'openTradeDate'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('closeTradeDate')}
+                    >
+                      Closed
+                      <SortIndicator active={closedTradesSortKey === 'closeTradeDate'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('daysInTrade')}
+                    >
+                      Days
+                      <SortIndicator active={closedTradesSortKey === 'daysInTrade'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('openTotalCost')}
+                    >
+                      Open
+                      <SortIndicator active={closedTradesSortKey === 'openTotalCost'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('closeTotalCost')}
+                    >
+                      Close
+                      <SortIndicator active={closedTradesSortKey === 'closeTotalCost'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('profitLoss')}
+                    >
+                      P/L
+                      <SortIndicator active={closedTradesSortKey === 'profitLoss'} direction={closedTradesSortDir} />
+                    </th>
+                    <th
+                      style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleClosedTradesSort('percentGainLoss')}
+                    >
+                      % G/L
+                      <SortIndicator active={closedTradesSortKey === 'percentGainLoss'} direction={closedTradesSortDir} />
+                    </th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Portfolio</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -355,13 +541,13 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
 
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-      <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{trade.symbol}</td>
-      <td style={{ padding: '0.75rem' }}>
+      <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{trade.symbol}</td>
+      <td style={{ padding: '0.5rem' }}>
         <span
           style={{
-            padding: '0.25rem 0.5rem',
+            padding: '0.2rem 0.4rem',
             borderRadius: '4px',
-            fontSize: '0.875rem',
+            fontSize: '0.75rem',
             backgroundColor: trade.optionType === 'call' ? '#e3f2fd' : '#fce4ec',
             color: trade.optionType === 'call' ? '#1976d2' : '#c2185b',
           }}
@@ -369,19 +555,19 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
           {trade.optionType.toUpperCase()}
         </span>
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
-      <td style={{ padding: '0.75rem' }}>{formatDate(trade.expirationDate)}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatStrikePrice(trade.strikePrice)}</td>
+      <td style={{ padding: '0.5rem' }}>{formatDate(trade.expirationDate)}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
         {daysToExpiration}
       </td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{trade.openQuantity}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openPremium)}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{trade.openQuantity}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.openPremium)}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold' }}>
         {formatCurrency(trade.openTotalCost)}
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{daysInTrade}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+      <td style={{ padding: '0.5rem' }}>{formatDate(trade.openTradeDate)}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{daysInTrade}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'center' }}>
         {trade.portfolioId && (
           <Link
             to={`/portfolios/${trade.portfolioId}`}
@@ -400,12 +586,12 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
           </Link>
         )}
       </td>
-      <td style={{ padding: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+      <td style={{ padding: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
           <Link
             to={`/trades/${trade.id}/close`}
             className="btn btn-primary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
           >
             Close
           </Link>
@@ -413,7 +599,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
             <Link
               to={`/trades/${trade.id}/edit`}
               className="btn btn-secondary"
-              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
             >
               Edit
             </Link>
@@ -422,7 +608,7 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
             <button
               onClick={handleDelete}
               className="btn btn-danger"
-              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
             >
               Delete
             </button>
@@ -454,13 +640,13 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
 
   return (
     <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-      <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{trade.symbol}</td>
-      <td style={{ padding: '0.75rem' }}>
+      <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{trade.symbol}</td>
+      <td style={{ padding: '0.5rem' }}>
         <span
           style={{
-            padding: '0.25rem 0.5rem',
+            padding: '0.2rem 0.4rem',
             borderRadius: '4px',
-            fontSize: '0.875rem',
+            fontSize: '0.75rem',
             backgroundColor: trade.optionType === 'call' ? '#e3f2fd' : '#fce4ec',
             color: trade.optionType === 'call' ? '#1976d2' : '#c2185b',
           }}
@@ -468,19 +654,19 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
           {trade.optionType.toUpperCase()}
         </span>
       </td>
-      <td style={{ padding: '0.75rem', textAlign: 'right', color: '#999' }}>
+      <td style={{ padding: '0.5rem', textAlign: 'right', color: '#999' }}>
         {daysToExpiration}
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
-      <td style={{ padding: '0.75rem' }}>
+      <td style={{ padding: '0.5rem' }}>{formatDate(trade.openTradeDate)}</td>
+      <td style={{ padding: '0.5rem' }}>
         {trade.closeTradeDate ? formatDate(trade.closeTradeDate) : 'N/A'}
       </td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{daysInTrade}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openTotalCost)}</td>
-      <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.closeTotalCost || 0)}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{daysInTrade}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.openTotalCost)}</td>
+      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.closeTotalCost || 0)}</td>
       <td
         style={{
-          padding: '0.75rem',
+          padding: '0.5rem',
           textAlign: 'right',
           fontWeight: 'bold',
           color: profitLoss >= 0 ? '#28a745' : '#dc3545',
@@ -490,7 +676,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
       </td>
       <td
         style={{
-          padding: '0.75rem',
+          padding: '0.5rem',
           textAlign: 'right',
           fontWeight: 'bold',
           color: percentGainLoss >= 0 ? '#28a745' : '#dc3545',
@@ -498,7 +684,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
       >
         {percentGainLoss >= 0 ? '+' : ''}{percentGainLoss.toFixed(1)}%
       </td>
-      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+      <td style={{ padding: '0.5rem', textAlign: 'center' }}>
         {trade.portfolioId && (
           <Link
             to={`/portfolios/${trade.portfolioId}`}
@@ -517,12 +703,12 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
           </Link>
         )}
       </td>
-      <td style={{ padding: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+      <td style={{ padding: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
           <Link to={`/trades/${trade.id}/view`}>
             <button
               className="btn btn-primary"
-              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
             >
               Edit
             </button>
@@ -531,7 +717,7 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
             <button
               onClick={handleDelete}
               className="btn btn-danger"
-              style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
             >
               Delete
             </button>
