@@ -147,7 +147,7 @@ export const TradeList = () => {
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h1>All Trades</h1>
+          <h1>Trades</h1>
           <Link to="/trades/new" className="btn btn-primary">
             Open New Trade
           </Link>
@@ -186,7 +186,7 @@ export const TradeList = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1>All Trades</h1>
+        <h1>Trades</h1>
         <Link to="/trades/new" className="btn btn-primary">
           Open New Trade
         </Link>
