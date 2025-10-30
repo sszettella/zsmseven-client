@@ -87,6 +87,7 @@ jobs:
 
       - name: Bump version (patch)
         id: bump-version
+        if: github.event_name != 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -96,6 +97,7 @@ jobs:
           git push origin main --follow-tags
 
       - name: Merge version bump back to develop
+        if: github.event_name != 'workflow_dispatch'
         run: |
           git fetch origin develop
           git checkout develop
@@ -103,14 +105,21 @@ jobs:
           git push origin develop
 
       - name: Bump develop version ahead of production
+        if: github.event_name != 'workflow_dispatch'
         run: |
           git checkout develop
-          npm version patch -m "chore: bump develop version ahead of production [skip ci]"
+          npm version patch -m "chore: bump develop version ahead of production"
           git push origin develop --follow-tags
 
       - name: Get version from package.json
         id: package-version
-        run: echo "version=${{ steps.bump-version.outputs.version }}" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION=$(node -p "require('./package.json').version")
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.bump-version.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build application
         env:
