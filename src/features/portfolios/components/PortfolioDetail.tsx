@@ -188,7 +188,7 @@ export const PortfolioDetail = () => {
             to={`/portfolios/${portfolioId}/edit`}
             className="btn btn-secondary"
           >
-            Edit Portfolio
+            Edit
           </Link>
         </div>
       </div>
@@ -268,7 +268,7 @@ export const PortfolioDetail = () => {
             style={{ fontSize: '0.875rem' }}
             onClick={() => setShowTradesSection(!showTradesSection)}
           >
-            {showTradesSection ? 'Hide' : 'Show'} Trades
+            {showTradesSection ? 'Hide' : 'Show'}
           </button>
         </div>
 
