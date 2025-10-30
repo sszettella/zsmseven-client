@@ -5,6 +5,11 @@ import { RouterProvider } from 'react-router-dom'
 import { router } from './routes'
 import './index.css'
 
+// Set document title based on environment
+const environment = import.meta.env.VITE_ENVIRONMENT || 'development';
+const baseTitle = 'ZSM Seven';
+document.title = environment === 'production' ? baseTitle : `${baseTitle} (dev)`;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
