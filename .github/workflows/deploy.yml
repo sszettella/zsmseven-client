@@ -105,7 +105,7 @@ jobs:
       - name: Bump develop version ahead of production
         run: |
           git checkout develop
-          npm version patch -m "chore: bump develop version ahead of production [skip ci]"
+          npm version patch -m "chore: bump develop version ahead of production"
           git push origin develop --follow-tags
 
       - name: Get version from package.json
