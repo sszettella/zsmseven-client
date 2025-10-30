@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLogin } from '../hooks/useAuth';
 import { LoginCredentials } from '@/types/auth';
+import { Footer } from '@/shared/components/Footer/Footer';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -36,79 +37,84 @@ export const LoginForm = () => {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px' }}>
-      <div className="card">
-        <h2 style={{ marginBottom: '1.5rem' }}>Login to Financial Tracker</h2>
-        
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="email">
-              Email
-            </label>
-            <input
-              {...register('email')}
-              type="email"
-              id="email"
-              className="form-control"
-              placeholder="you@example.com"
-            />
-            {errors.email && (
-              <p className="error-message">{errors.email.message}</p>
-            )}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: '400px', width: '100%', padding: '20px' }}>
+          <div className="card">
+            <h2 style={{ marginBottom: '1.5rem' }}>Login to ZSM7</h2>
+
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  {...register('email')}
+                  type="email"
+                  id="email"
+                  className="form-control"
+                  placeholder="you@example.com"
+                />
+                {errors.email && (
+                  <p className="error-message">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  className="form-control"
+                  placeholder="••••••••"
+                />
+                {errors.password && (
+                  <p className="error-message">{errors.password.message}</p>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(e) => setShowPassword(e.target.checked)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Show password
+                </label>
+              </div>
+
+              {error && (
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#f8d7da',
+                    color: '#721c24',
+                    borderRadius: '4px',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  Login failed. Please check your credentials.
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isPending}
+                style={{ width: '100%' }}
+              >
+                {isPending ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
           </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">
-              Password
-            </label>
-            <input
-              {...register('password')}
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              className="form-control"
-              placeholder="••••••••"
-            />
-            {errors.password && (
-              <p className="error-message">{errors.password.message}</p>
-            )}
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Show password
-            </label>
-          </div>
-
-          {error && (
-            <div
-              style={{
-                padding: '0.75rem',
-                backgroundColor: '#f8d7da',
-                color: '#721c24',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-              }}
-            >
-              Login failed. Please check your credentials.
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isPending}
-            style={{ width: '100%' }}
-          >
-            {isPending ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 };
