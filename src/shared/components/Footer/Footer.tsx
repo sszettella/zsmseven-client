@@ -16,7 +16,7 @@ export const Footer = () => {
       }}
     >
       <div>
-        ZSM7 v{version} | Build #{buildNumber}{envSuffix}
+        ZSM7 v{version}{envSuffix} | Build #{buildNumber}
       </div>
     </footer>
   );
