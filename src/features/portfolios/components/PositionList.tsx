@@ -134,7 +134,7 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
                   return (
                     <tr key={position.id} style={{ borderBottom: '1px solid #dee2e6' }}>
                       <td style={{ padding: '1rem', fontWeight: 'bold' }}>{position.ticker}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>{position.shares.toFixed(3)}</td>
+                      <td style={{ padding: '1rem', textAlign: 'right' }}>{Math.round(position.shares)}</td>
                       <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(position.averageCost)}</td>
                       <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(position.costBasis)}</td>
                       <td style={{ padding: '1rem', textAlign: 'right' }}>

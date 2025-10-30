@@ -231,9 +231,16 @@ export const PortfolioDetail = () => {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Portfolio Value</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
-                {formatCurrency(yieldMetrics.portfolioValue)}
+              <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Profit/Loss</div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 'bold',
+                  color: yieldMetrics.last30DaysYieldDollar >= 0 ? '#28a745' : '#dc3545'
+                }}
+              >
+                {yieldMetrics.last30DaysYieldDollar >= 0 ? '+' : ''}
+                {formatCurrency(yieldMetrics.last30DaysYieldDollar)}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#999' }}>
                 {yieldMetrics.tradesCount} {yieldMetrics.tradesCount === 1 ? 'trade' : 'trades'} closed
