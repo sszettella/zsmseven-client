@@ -31,7 +31,7 @@ export const Navigation = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flex: 1 }}>
             <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#333' }}>
-              ZSM Seven
+              ZSM7
             </Link>
             <div
               className="desktop-menu"
@@ -48,7 +48,7 @@ export const Navigation = () => {
                 to="/trades"
                 className={`nav-link ${isActive('/trades') ? 'active' : ''}`}
               >
-                All Trades
+                Trades
               </Link>
               <Link
                 to="/portfolios"
@@ -130,7 +130,7 @@ export const Navigation = () => {
               onClick={closeMobileMenu}
               style={{ padding: '0.5rem', display: 'block' }}
             >
-              All Trades
+              Trades
             </Link>
             <Link
               to="/portfolios"

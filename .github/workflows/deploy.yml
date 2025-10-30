@@ -102,6 +102,12 @@ jobs:
           git merge main --no-edit -m "chore: merge version bump from main [skip ci]"
           git push origin develop
 
+      - name: Bump develop version ahead of production
+        run: |
+          git checkout develop
+          npm version patch -m "chore: bump develop version ahead of production [skip ci]"
+          git push origin develop --follow-tags
+
       - name: Get version from package.json
         id: package-version
         run: echo "version=${{ steps.bump-version.outputs.version }}" >> $GITHUB_OUTPUT
