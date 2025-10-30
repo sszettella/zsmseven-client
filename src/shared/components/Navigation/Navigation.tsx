@@ -1,10 +1,17 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 
 export const Navigation = () => {
   const { user, isAdmin } = useAuth();
   const { mutate: logout } = useLogout();
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    // Check if current path starts with the menu path
+    // This handles nested routes like /trades/new, /trades/:id, etc.
+    return location.pathname.startsWith(path) && path !== '/';
+  };
 
   return (
     <nav
@@ -21,31 +28,36 @@ export const Navigation = () => {
             <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#333' }}>
               ZSM Seven
             </Link>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <Link to="/trades/new" className="btn btn-primary">
                 Open New Trade
               </Link>
-              <Link to="/trades" style={{ textDecoration: 'none', color: '#666' }}>
+              <Link
+                to="/trades"
+                className={`nav-link ${isActive('/trades') ? 'active' : ''}`}
+              >
                 All Trades
               </Link>
-              <Link to="/portfolios" style={{ textDecoration: 'none', color: '#666' }}>
+              <Link
+                to="/portfolios"
+                className={`nav-link ${isActive('/portfolios') ? 'active' : ''}`}
+              >
                 Portfolios
               </Link>
               {isAdmin && (
-                <Link to="/admin/users" style={{ textDecoration: 'none', color: '#666' }}>
+                <Link
+                  to="/admin/users"
+                  className={`nav-link ${isActive('/admin') ? 'active' : ''}`}
+                >
                   Users
                 </Link>
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <Link
               to="/profile"
-              style={{
-                color: '#666',
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
+              className={`nav-link ${isActive('/profile') ? 'active' : ''}`}
             >
               {user?.name}
             </Link>

@@ -113,3 +113,23 @@ code {
   text-align: center;
   padding: 2rem;
 }
+
+/* Navigation styles */
+.nav-link {
+  text-decoration: none;
+  color: #666;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  color: #333;
+  background-color: #f0f0f0;
+}
+
+.nav-link.active {
+  color: #007bff;
+  background-color: #e7f3ff;
+  font-weight: 500;
+}
