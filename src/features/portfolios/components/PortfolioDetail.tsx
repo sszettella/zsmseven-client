@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePortfolio } from '../hooks/usePortfolios';
 import { usePortfolioPositions, useDeletePosition } from '../hooks/usePositions';
+import { usePortfolioYield } from '../hooks/usePortfolioYield';
 import { formatDate } from '@/shared/utils/formatters';
 import { PositionList } from './PositionList';
 import { useTrades } from '@/features/trades/hooks/useTrades';
@@ -13,6 +14,7 @@ export const PortfolioDetail = () => {
   const { data: portfolio, isLoading: portfolioLoading } = usePortfolio(portfolioId!);
   const { data: positions, isLoading: positionsLoading } = usePortfolioPositions(portfolioId!);
   const { data: trades, isLoading: tradesLoading } = useTrades(portfolioId);
+  const yieldMetrics = usePortfolioYield(portfolioId!);
   const { mutate: deletePosition } = useDeletePosition();
 
   const [showTradesSection, setShowTradesSection] = useState(false);
@@ -138,6 +140,56 @@ export const PortfolioDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* Yield Metrics - 30 Day Performance */}
+            {yieldMetrics && yieldMetrics.tradesCount > 0 && (
+              <div style={{ padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#333' }}>Yield (Past 30 Days)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>30-Day Yield</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '1.5rem',
+                          fontWeight: 'bold',
+                          color: yieldMetrics.last30DaysYieldPercent >= 0 ? '#28a745' : '#dc3545',
+                        }}
+                      >
+                        {yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+                        {yieldMetrics.last30DaysYieldPercent.toFixed(2)}%
+                      </span>
+                      <span style={{ fontSize: '0.875rem', color: '#666' }}>
+                        ({yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+                        {formatCurrency(yieldMetrics.last30DaysYieldDollar)})
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Annualized Yield</div>
+                    <div
+                      style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        color: yieldMetrics.last30DaysAnnualizedYield >= 0 ? '#28a745' : '#dc3545',
+                      }}
+                    >
+                      {yieldMetrics.last30DaysAnnualizedYield >= 0 ? '+' : ''}
+                      {yieldMetrics.last30DaysAnnualizedYield.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Portfolio Value</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                      {formatCurrency(yieldMetrics.portfolioValue)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#999' }}>
+                      {yieldMetrics.tradesCount} {yieldMetrics.tradesCount === 1 ? 'trade' : 'trades'} closed
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Collapsible Trade Tables */}
             {showTradesSection && (

@@ -61,15 +61,16 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
     }
 
     // Format ticker to uppercase
-    const dataToSubmit = {
-      ...formData,
-      ticker: formatTicker(formData.ticker),
-    };
+    const ticker = formatTicker(formData.ticker || '');
 
     if (position) {
       // Update existing position
+      const updateData: UpdatePositionData = {
+        ...formData,
+        ticker,
+      };
       updatePosition(
-        { portfolioId, positionId: position.id, data: dataToSubmit },
+        { portfolioId, positionId: position.id, data: updateData },
         {
           onSuccess: () => {
             console.log('Position updated successfully');
@@ -82,9 +83,16 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
         }
       );
     } else {
-      // Create new position
+      // Create new position - ensure required fields are present
+      const createData: CreatePositionData = {
+        ticker,
+        shares: formData.shares || 0,
+        costBasis: formData.costBasis || 0,
+        currentPrice: formData.currentPrice !== null ? formData.currentPrice : undefined,
+        notes: formData.notes,
+      };
       createPosition(
-        { portfolioId, data: dataToSubmit },
+        { portfolioId, data: createData },
         {
           onSuccess: () => {
             console.log('Position created successfully');

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCloseTrade } from '../hooks/useTrades';
 import { Trade, ClosingAction, getValidCloseAction } from '@/types/trade';
-import { calculateCloseTotalCost, calculateProfitLoss, formatCurrency } from '@/shared/utils/calculations';
+import { calculateCloseTotalCost, calculateProfitLoss, calculateYieldPercent, formatCurrency, formatPercentage } from '@/shared/utils/calculations';
 import { useNavigate } from 'react-router-dom';
 
 const closeTradeSchema = z.object({
@@ -52,6 +52,10 @@ export const CloseTradeForm = ({ trade, portfolioId }: CloseTradeFormProps) => {
     closeTotalCost
       ? calculateProfitLoss(trade.openTotalCost, closeTotalCost, trade.openAction)
       : 0;
+
+  const projectedPLPercent = trade.openTotalCost
+    ? calculateYieldPercent(projectedPL, trade.openTotalCost)
+    : 0;
 
   const onSubmit = (data: CloseTradeFormData) => {
     closeTrade(
@@ -243,6 +247,10 @@ export const CloseTradeForm = ({ trade, portfolioId }: CloseTradeFormProps) => {
               <div style={{ color: '#666', fontSize: '0.875rem', fontWeight: 'normal' }}>Projected Profit/Loss:</div>
               <span style={{ color: projectedPL >= 0 ? '#155724' : '#721c24' }}>
                 {projectedPL >= 0 ? '+' : ''}{formatCurrency(projectedPL)}
+                {' '}
+                <span style={{ fontSize: '1rem' }}>
+                  ({projectedPLPercent >= 0 ? '+' : ''}{formatPercentage(projectedPLPercent)})
+                </span>
               </span>
             </div>
           </div>

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolios, useDeletePortfolio, useSetDefaultPortfolio } from '../hooks/usePortfolios';
 import { usePortfolioPositions } from '../hooks/usePositions';
+import { usePortfolioYield } from '../hooks/usePortfolioYield';
 import { formatDate } from '@/shared/utils/formatters';
 import { formatCurrency } from '@/shared/utils/calculations';
 
 // Component to fetch and display portfolio metrics
 const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
   const { data: positions, isLoading } = usePortfolioPositions(portfolioId);
+  const yieldMetrics = usePortfolioYield(portfolioId);
 
   if (isLoading) {
     return <span style={{ color: '#999', fontSize: '0.875rem' }}>Loading...</span>;
@@ -18,13 +20,38 @@ const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
 
   return (
     <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
-      <span style={{ marginRight: '1rem' }}>
-        <strong>{positionCount}</strong> {positionCount === 1 ? 'position' : 'positions'}
-      </span>
-      {totalValue > 0 && (
-        <span>
-          Total Value: <strong>{formatCurrency(totalValue)}</strong>
+      <div style={{ marginBottom: '0.25rem' }}>
+        <span style={{ marginRight: '1rem' }}>
+          <strong>{positionCount}</strong> {positionCount === 1 ? 'position' : 'positions'}
         </span>
+        {totalValue > 0 && (
+          <span>
+            Total Value: <strong>{formatCurrency(totalValue)}</strong>
+          </span>
+        )}
+      </div>
+      {yieldMetrics && yieldMetrics.tradesCount > 0 && (
+        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e0e0e0' }}>
+          <div style={{ marginBottom: '0.25rem' }}>
+            <strong>Yield (Past 30 Days):</strong>{' '}
+            <span
+              style={{
+                fontWeight: 'bold',
+                color: yieldMetrics.last30DaysYieldPercent >= 0 ? '#28a745' : '#dc3545',
+              }}
+            >
+              {yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+              {yieldMetrics.last30DaysYieldPercent.toFixed(2)}%
+            </span>
+            {' '}
+            ({yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+            {formatCurrency(yieldMetrics.last30DaysYieldDollar)})
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#999' }}>
+            Annualized: {yieldMetrics.last30DaysAnnualizedYield >= 0 ? '+' : ''}
+            {yieldMetrics.last30DaysAnnualizedYield.toFixed(2)}%
+          </div>
+        </div>
       )}
     </div>
   );

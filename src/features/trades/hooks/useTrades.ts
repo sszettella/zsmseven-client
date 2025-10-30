@@ -71,7 +71,7 @@ export const useUpdateTrade = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ tradeId, data, oldPortfolioId }: {
+    mutationFn: ({ tradeId, data }: {
       tradeId: string;
       data: UpdateTradeData;
       oldPortfolioId?: string;

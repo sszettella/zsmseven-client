@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePortfolios } from '../hooks/usePortfolios';
 import { usePortfolioPositions } from '../hooks/usePositions';
+import { usePortfolioYield } from '../hooks/usePortfolioYield';
 import { useOpenTrades, useTrades } from '@/features/trades/hooks/useTrades';
 import { TradeStatus, Trade } from '@/types/trade';
 import { formatCurrency } from '@/shared/utils/calculations';
@@ -51,6 +52,7 @@ const getAverageClosedProfitPercent = (trades: Trade[]): number => {
 // Component to fetch and display portfolio metrics
 const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
   const { data: positions, isLoading } = usePortfolioPositions(portfolioId);
+  const yieldMetrics = usePortfolioYield(portfolioId);
 
   if (isLoading) {
     return <span style={{ color: '#999', fontSize: '0.875rem' }}>Loading...</span>;
@@ -65,9 +67,34 @@ const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
         <strong>{positionCount}</strong> {positionCount === 1 ? 'position' : 'positions'}
       </div>
       {totalValue > 0 && (
-        <div>
+        <div style={{ marginBottom: '0.25rem' }}>
           Total Value: <strong>{formatCurrency(totalValue)}</strong>
         </div>
+      )}
+      {yieldMetrics && yieldMetrics.tradesCount > 0 && (
+        <>
+          <div style={{ marginBottom: '0.25rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e0e0e0' }}>
+            <strong>Yield (Past 30 Days)</strong>
+          </div>
+          <div style={{ marginBottom: '0.25rem' }}>
+            <span
+              style={{
+                fontWeight: 'bold',
+                color: yieldMetrics.last30DaysYieldPercent >= 0 ? '#28a745' : '#dc3545',
+              }}
+            >
+              {yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+              {yieldMetrics.last30DaysYieldPercent.toFixed(2)}%
+            </span>
+            {' '}
+            ({yieldMetrics.last30DaysYieldPercent >= 0 ? '+' : ''}
+            {formatCurrency(yieldMetrics.last30DaysYieldDollar)})
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#999' }}>
+            Annualized: {yieldMetrics.last30DaysAnnualizedYield >= 0 ? '+' : ''}
+            {yieldMetrics.last30DaysAnnualizedYield.toFixed(2)}%
+          </div>
+        </>
       )}
     </div>
   );
@@ -82,7 +109,6 @@ export const Dashboard = () => {
   const closedTrades = allTrades?.filter((t) => t.status === TradeStatus.CLOSED) || [];
   const winRate = getWinPercentage(closedTrades);
   const winningTrades = closedTrades.filter((trade) => (trade.profitLoss || 0) > 0).length;
-  const last30DaysTrades = getLast30DaysTrades(closedTrades);
   const last30DaysPL = getLast30DaysPL(closedTrades);
   const avgClosedProfitPercent = getAverageClosedProfitPercent(closedTrades);
 

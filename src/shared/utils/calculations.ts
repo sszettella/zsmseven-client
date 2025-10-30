@@ -79,3 +79,26 @@ export const formatPercentage = (value: number): string => {
     maximumFractionDigits: 2,
   }).format(value / 100);
 };
+
+/**
+ * Calculate yield percentage based on profit/loss and cost basis
+ * @param profitLoss - Total profit or loss
+ * @param costBasis - Initial investment or portfolio value
+ * @returns Yield as a percentage
+ */
+export const calculateYieldPercent = (profitLoss: number, costBasis: number): number => {
+  if (costBasis === 0) return 0;
+  return (profitLoss / costBasis) * 100;
+};
+
+/**
+ * Calculate annualized yield percentage
+ * @param yieldPercent - Yield percentage for the period
+ * @param days - Number of days in the period
+ * @returns Annualized yield as a percentage
+ */
+export const calculateAnnualizedYield = (yieldPercent: number, days: number): number => {
+  if (days === 0) return 0;
+  // Annualize by scaling to 365 days
+  return (yieldPercent / days) * 365;
+};

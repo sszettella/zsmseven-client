@@ -49,6 +49,21 @@ export interface AssociatedTradesSummary {
   totalProfitLoss: number;
 }
 
+// Yield metrics for a portfolio based on closed trades
+export interface PortfolioYieldMetrics {
+  // 30-day yield metrics
+  last30DaysPL: number;
+  last30DaysYieldPercent: number;
+  last30DaysYieldDollar: number;
+  last30DaysAnnualizedYield: number;
+
+  // Portfolio value for calculation
+  portfolioValue: number;
+
+  // Number of trades used in calculation
+  tradesCount: number;
+}
+
 // Full portfolio summary with positions and metrics
 export interface PortfolioSummary {
   portfolio: Portfolio;
