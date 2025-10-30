@@ -1,6 +1,8 @@
 export const Footer = () => {
   const version = import.meta.env.VITE_APP_VERSION || '1.0.0';
   const buildNumber = import.meta.env.VITE_BUILD_NUMBER || 'dev';
+  const environment = import.meta.env.VITE_ENVIRONMENT || 'development';
+  const envSuffix = environment === 'development' ? ' (dev)' : '';
 
   return (
     <footer
@@ -14,7 +16,7 @@ export const Footer = () => {
       }}
     >
       <div>
-        ZSM7 v{version} | Build #{buildNumber}
+        ZSM7 v{version} | Build #{buildNumber}{envSuffix}
       </div>
     </footer>
   );
