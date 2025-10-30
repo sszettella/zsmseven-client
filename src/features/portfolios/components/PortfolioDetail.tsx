@@ -4,11 +4,15 @@ import { usePortfolio } from '../hooks/usePortfolios';
 import { usePortfolioPositions, useDeletePosition } from '../hooks/usePositions';
 import { formatDate } from '@/shared/utils/formatters';
 import { PositionList } from './PositionList';
+import { useTrades } from '@/features/trades/hooks/useTrades';
+import { TradeStatus } from '@/types/trade';
+import { formatCurrency } from '@/shared/utils/calculations';
 
 export const PortfolioDetail = () => {
   const { portfolioId } = useParams<{ portfolioId: string }>();
   const { data: portfolio, isLoading: portfolioLoading } = usePortfolio(portfolioId!);
   const { data: positions, isLoading: positionsLoading } = usePortfolioPositions(portfolioId!);
+  const { data: trades, isLoading: tradesLoading } = useTrades(portfolioId);
   const { mutate: deletePosition } = useDeletePosition();
 
   const [showTradesSection, setShowTradesSection] = useState(false);
@@ -78,7 +82,7 @@ export const PortfolioDetail = () => {
         />
       </div>
 
-      {/* Associated Trades Section (Optional) */}
+      {/* Associated Trades Section */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0 }}>Associated Options Trades</h2>
@@ -91,36 +95,222 @@ export const PortfolioDetail = () => {
           </button>
         </div>
 
-        {showTradesSection ? (
+        {tradesLoading ? (
+          <p style={{ color: '#666' }}>Loading trades...</p>
+        ) : !trades || trades.length === 0 ? (
           <div>
             <p style={{ color: '#666', marginBottom: '1rem' }}>
-              Options trades can be associated with this portfolio for organizational purposes.
+              No trades are currently associated with this portfolio.
             </p>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-              <Link
-                to={`/trades?portfolioId=${portfolioId}`}
-                className="btn btn-secondary"
-              >
-                View All Trades
-              </Link>
-              <Link
-                to={`/trades/new?portfolioId=${portfolioId}`}
-                className="btn btn-primary"
-              >
-                Open New Trade
-              </Link>
-            </div>
-            <div style={{ fontSize: '0.875rem', color: '#999' }}>
-              Note: Trades are managed separately from portfolio positions. They can be optionally
-              linked to portfolios for tracking purposes (e.g., covered calls on your stock positions).
-            </div>
+            <Link
+              to={`/trades/new?portfolioId=${portfolioId}`}
+              className="btn btn-primary"
+            >
+              Open New Trade
+            </Link>
           </div>
         ) : (
-          <p style={{ color: '#999', fontSize: '0.875rem', margin: 0 }}>
-            Click "Show Trades" to view and manage options trades associated with this portfolio.
-          </p>
+          <>
+            {/* Trades Summary - Always visible */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Open Trades</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#007bff' }}>
+                  {trades.filter(t => t.status === TradeStatus.OPEN).length}
+                </div>
+              </div>
+              <div style={{ padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Closed Trades</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                  {trades.filter(t => t.status === TradeStatus.CLOSED).length}
+                </div>
+              </div>
+              <div style={{ padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>Total P/L</div>
+                <div
+                  style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 'bold',
+                    color: getTotalPL(trades.filter(t => t.status === TradeStatus.CLOSED)) >= 0 ? '#28a745' : '#dc3545'
+                  }}
+                >
+                  {formatCurrency(getTotalPL(trades.filter(t => t.status === TradeStatus.CLOSED)))}
+                </div>
+              </div>
+            </div>
+
+            {/* Collapsible Trade Tables */}
+            {showTradesSection && (
+              <>
+                {/* Open Trades */}
+                {trades.filter(t => t.status === TradeStatus.OPEN).length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Open Trades</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e0e0e0', backgroundColor: '#f8f9fa' }}>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Symbol</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Type</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Strike</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Expiration</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Qty</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Premium</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Total</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {trades.filter(t => t.status === TradeStatus.OPEN).map(trade => (
+                            <tr key={trade.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                              <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{trade.symbol}</td>
+                              <td style={{ padding: '0.5rem' }}>
+                                <span
+                                  style={{
+                                    padding: '0.2rem 0.4rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    backgroundColor: trade.optionType === 'call' ? '#e3f2fd' : '#fce4ec',
+                                    color: trade.optionType === 'call' ? '#1976d2' : '#c2185b',
+                                  }}
+                                >
+                                  {trade.optionType.toUpperCase()}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.5rem', textAlign: 'right' }}>${Math.round(trade.strikePrice)}</td>
+                              <td style={{ padding: '0.5rem' }}>{new Date(trade.expirationDate).toLocaleDateString()}</td>
+                              <td style={{ padding: '0.5rem', textAlign: 'right' }}>{trade.openQuantity}</td>
+                              <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.openPremium)}</td>
+                              <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold' }}>
+                                {formatCurrency(trade.openTotalCost)}
+                              </td>
+                              <td style={{ padding: '0.5rem' }}>
+                                <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                                  <Link
+                                    to={`/trades/${trade.id}/close`}
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                  >
+                                    Close
+                                  </Link>
+                                  <Link
+                                    to={`/trades/${trade.id}/edit`}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                  >
+                                    Edit
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Closed Trades */}
+                {trades.filter(t => t.status === TradeStatus.CLOSED).length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Closed Trades</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e0e0e0', backgroundColor: '#f8f9fa' }}>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Symbol</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Type</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Strike</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Opened</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'left' }}>Closed</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Open Cost</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Close Cost</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
+                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {trades.filter(t => t.status === TradeStatus.CLOSED).map(trade => {
+                            const profitLoss = trade.profitLoss || 0;
+                            return (
+                              <tr key={trade.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                                <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{trade.symbol}</td>
+                                <td style={{ padding: '0.5rem' }}>
+                                  <span
+                                    style={{
+                                      padding: '0.2rem 0.4rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      backgroundColor: trade.optionType === 'call' ? '#e3f2fd' : '#fce4ec',
+                                      color: trade.optionType === 'call' ? '#1976d2' : '#c2185b',
+                                    }}
+                                  >
+                                    {trade.optionType.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '0.5rem', textAlign: 'right' }}>${Math.round(trade.strikePrice)}</td>
+                                <td style={{ padding: '0.5rem' }}>{new Date(trade.openTradeDate).toLocaleDateString()}</td>
+                                <td style={{ padding: '0.5rem' }}>
+                                  {trade.closeTradeDate ? new Date(trade.closeTradeDate).toLocaleDateString() : 'N/A'}
+                                </td>
+                                <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.openTotalCost)}</td>
+                                <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(trade.closeTotalCost || 0)}</td>
+                                <td
+                                  style={{
+                                    padding: '0.5rem',
+                                    textAlign: 'right',
+                                    fontWeight: 'bold',
+                                    color: profitLoss >= 0 ? '#28a745' : '#dc3545',
+                                  }}
+                                >
+                                  {profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)}
+                                </td>
+                                <td style={{ padding: '0.5rem' }}>
+                                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                                    <Link
+                                      to={`/trades/${trade.id}/view`}
+                                      className="btn btn-secondary"
+                                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                    >
+                                      Edit
+                                    </Link>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <Link
+                    to={`/trades/new?portfolioId=${portfolioId}`}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.875rem' }}
+                  >
+                    Open New Trade
+                  </Link>
+                  <Link
+                    to="/trades"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.875rem' }}
+                  >
+                    View All Trades
+                  </Link>
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
   );
+};
+
+// Helper function to calculate total P/L
+const getTotalPL = (trades: any[]): number => {
+  return trades.reduce((sum, trade) => sum + (trade.profitLoss || 0), 0);
 };

@@ -14,9 +14,11 @@ export const tradesService = {
     return data;
   },
 
-  // Get trades by portfolio
+  // Get trades by portfolio (using query parameter)
   getByPortfolio: async (portfolioId: string): Promise<Trade[]> => {
-    const { data } = await apiClient.get<Trade[]>(`/portfolios/${portfolioId}/trades`);
+    const { data } = await apiClient.get<Trade[]>('/trades', {
+      params: { portfolioId }
+    });
     return data;
   },
 

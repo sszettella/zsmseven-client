@@ -23,7 +23,12 @@ export const PortfolioSelector = ({
   // Auto-select default portfolio if no value is set (only if autoSelectDefault is true)
   const effectiveValue = value || (autoSelectDefault ? defaultPortfolio?.id : undefined) || '';
 
-  const activePortfolios = portfolios?.filter((p) => p.isActive) || [];
+  // Filter and sort portfolios: default portfolio first, then others
+  const activePortfolios = (portfolios?.filter((p) => p.isActive) || []).sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return 0;
+  });
 
   if (isLoading) {
     return (

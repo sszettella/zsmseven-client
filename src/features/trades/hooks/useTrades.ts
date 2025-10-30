@@ -71,14 +71,28 @@ export const useUpdateTrade = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ tradeId, data }: { tradeId: string; data: UpdateTradeData }) =>
+    mutationFn: ({ tradeId, data, oldPortfolioId }: {
+      tradeId: string;
+      data: UpdateTradeData;
+      oldPortfolioId?: string;
+    }) =>
       tradesService.update(tradeId, data),
-    onSuccess: (updatedTrade) => {
+    onSuccess: (updatedTrade, variables) => {
+      // Invalidate general trade queries
       queryClient.invalidateQueries({ queryKey: ['trades'] });
       queryClient.invalidateQueries({ queryKey: ['trades', 'open'] });
       queryClient.invalidateQueries({ queryKey: ['trade', updatedTrade.id] });
+
+      // Invalidate old portfolio cache if it existed and was different
+      if (variables.oldPortfolioId && variables.oldPortfolioId !== updatedTrade.portfolioId) {
+        queryClient.invalidateQueries({ queryKey: ['trades', variables.oldPortfolioId] });
+        queryClient.invalidateQueries({ queryKey: ['portfolio', variables.oldPortfolioId] });
+      }
+
+      // Invalidate new portfolio cache if one is set
       if (updatedTrade.portfolioId) {
         queryClient.invalidateQueries({ queryKey: ['trades', updatedTrade.portfolioId] });
+        queryClient.invalidateQueries({ queryKey: ['portfolio', updatedTrade.portfolioId] });
       }
     },
   });

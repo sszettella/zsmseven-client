@@ -14,8 +14,13 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method?.toUpperCase(), `${config.baseURL || ''}${config.url || ''}`);
     const token = localStorage.getItem(TOKEN_KEY);
+    console.log('API Request:', {
+      method: config.method?.toUpperCase(),
+      url: `${config.baseURL || ''}${config.url || ''}`,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
+    });
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -43,9 +48,19 @@ apiClient.interceptors.response.use(
       const isAuthEndpoint = error.config?.url?.includes('/auth/login') ||
                              error.config?.url?.includes('/auth/register');
 
+      console.log('401 Unauthorized:', {
+        url: error.config?.url,
+        isAuthEndpoint,
+        errorMessage: error.response?.data?.message || error.message,
+        headers: error.config?.headers
+      });
+
       if (!isAuthEndpoint) {
-        // Handle unauthorized - redirect to login
+        // Handle unauthorized - clear all auth data and redirect to login
+        console.warn('Clearing auth data and redirecting to login due to 401');
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('auth_user');
         window.location.href = '/login';
       }
     }

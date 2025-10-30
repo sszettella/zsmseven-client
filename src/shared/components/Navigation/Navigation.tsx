@@ -21,15 +21,15 @@ export const Navigation = () => {
             <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#333' }}>
               ZSM Seven
             </Link>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <Link to="/portfolios" style={{ textDecoration: 'none', color: '#666' }}>
-                Portfolios
-              </Link>
-              <Link to="/trades/new" style={{ textDecoration: 'none', color: '#666' }}>
-                New Trade
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <Link to="/trades/new" className="btn btn-primary">
+                Open New Trade
               </Link>
               <Link to="/trades" style={{ textDecoration: 'none', color: '#666' }}>
                 All Trades
+              </Link>
+              <Link to="/portfolios" style={{ textDecoration: 'none', color: '#666' }}>
+                Portfolios
               </Link>
               {isAdmin && (
                 <Link to="/admin/users" style={{ textDecoration: 'none', color: '#666' }}>

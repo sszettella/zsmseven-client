@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, ClosingAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, calculateCloseTotalCost, calculateProfitLoss, formatCurrency } from '@/shared/utils/calculations';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
 import { useState } from 'react';
 
@@ -39,6 +39,7 @@ interface ClosedTradeEditFormProps {
 
 export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { mutate: updateTrade, isPending } = useUpdateTrade();
 
   // Track selected portfolio separately from the form
@@ -46,6 +47,9 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | undefined>(
     portfolioId || trade.portfolioId || undefined
   );
+
+  // Determine if we came from the trade list (check if the path includes /trades without a portfolioId in route)
+  const cameFromTradeList = location.pathname.startsWith('/trades/') && !location.pathname.includes('/portfolios/');
 
   const {
     register,
@@ -119,12 +123,18 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
     };
 
     updateTrade(
-      { tradeId: trade.id, data: updateData },
+      {
+        tradeId: trade.id,
+        data: updateData,
+        oldPortfolioId: trade.portfolioId
+      },
       {
         onSuccess: () => {
-          // Navigate to the selected portfolio, or portfolioId prop, or trades list
-          if (selectedPortfolioId) {
-            navigate(`/portfolios/${selectedPortfolioId}`);
+          // Navigate back to where we came from
+          if (cameFromTradeList) {
+            navigate('/trades');
+          } else if (selectedPortfolioId || portfolioId) {
+            navigate(`/portfolios/${selectedPortfolioId || portfolioId}`);
           } else {
             navigate('/trades');
           }
@@ -428,7 +438,15 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/trades')}
+            onClick={() => {
+              if (cameFromTradeList) {
+                navigate('/trades');
+              } else if (selectedPortfolioId || portfolioId) {
+                navigate(`/portfolios/${selectedPortfolioId || portfolioId}`);
+              } else {
+                navigate('/trades');
+              }
+            }}
           >
             Cancel
           </button>

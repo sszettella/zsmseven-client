@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolios, useDeletePortfolio, useSetDefaultPortfolio } from '../hooks/usePortfolios';
 import { usePortfolioPositions } from '../hooks/usePositions';
@@ -29,6 +30,85 @@ const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
   );
 };
 
+// Component to aggregate metrics across all portfolios
+const AggregatePortfolioSummary = ({ portfolioIds }: { portfolioIds: string[] }) => {
+  if (portfolioIds.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="card" style={{
+      backgroundColor: '#f8f9fa',
+      border: '2px solid #007bff',
+      marginBottom: '1.5rem'
+    }}>
+      <h2 style={{ marginTop: 0, marginBottom: '1rem', color: '#007bff' }}>
+        Portfolio Summary
+      </h2>
+      <AggregateCalculator portfolioIds={portfolioIds} />
+    </div>
+  );
+};
+
+// Helper component that actually does the calculation
+const AggregateCalculator = ({ portfolioIds }: { portfolioIds: string[] }) => {
+  const [stats, setStats] = useState({ positions: 0, value: 0, loaded: 0 });
+
+  const positionsData = portfolioIds.map(id => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return usePortfolioPositions(id);
+  });
+
+  useEffect(() => {
+    let totalPositions = 0;
+    let totalValue = 0;
+    let loadedCount = 0;
+
+    positionsData.forEach(({ data, isLoading }) => {
+      if (!isLoading && data) {
+        loadedCount++;
+        totalPositions += data.length || 0;
+        totalValue += data.reduce((sum, p) => sum + (p.marketValue || p.costBasis), 0) || 0;
+      }
+    });
+
+    setStats({ positions: totalPositions, value: totalValue, loaded: loadedCount });
+  }, [positionsData]);
+
+  const isLoading = stats.loaded < portfolioIds.length;
+
+  return isLoading ? (
+    <div style={{ color: '#666' }}>Loading aggregate data...</div>
+  ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+      <div>
+        <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>
+          Total Portfolios
+        </div>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333' }}>
+          {portfolioIds.length}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>
+          Total Positions
+        </div>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333' }}>
+          {stats.positions}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>
+          Total Value
+        </div>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#28a745' }}>
+          {formatCurrency(stats.value)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const PortfolioList = () => {
   const navigate = useNavigate();
   const { data: portfolios, isLoading, error } = usePortfolios();
@@ -37,6 +117,13 @@ export const PortfolioList = () => {
 
   if (isLoading) return <div className="loading">Loading portfolios...</div>;
   if (error) return <div>Error loading portfolios</div>;
+
+  // Sort portfolios to show default first
+  const sortedPortfolios = [...(portfolios || [])].sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return 0;
+  });
 
   return (
     <div>
@@ -50,8 +137,11 @@ export const PortfolioList = () => {
         </button>
       </div>
 
+      {/* Aggregate Summary across all portfolios */}
+      <AggregatePortfolioSummary portfolioIds={sortedPortfolios?.map(p => p.id) || []} />
+
       <div style={{ display: 'grid', gap: '1rem' }}>
-        {portfolios?.map((portfolio) => (
+        {sortedPortfolios?.map((portfolio) => (
           <div key={portfolio.id} className="card">
             <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>

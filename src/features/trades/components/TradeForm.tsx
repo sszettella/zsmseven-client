@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { useCreateTrade, useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, formatCurrency } from '@/shared/utils/calculations';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
 import { useState } from 'react';
 
@@ -30,10 +30,14 @@ interface TradeFormProps {
 
 export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   // Track selected portfolio separately from the form
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | undefined>(
     portfolioId || trade?.portfolioId
   );
+
+  // Determine if we came from the trade list (check if the path includes /trades without a portfolioId in route)
+  const cameFromTradeList = location.pathname.startsWith('/trades/') && !location.pathname.includes('/portfolios/');
 
   const { mutate: createTrade, isPending: isCreating } = useCreateTrade(selectedPortfolioId);
   const { mutate: updateTrade, isPending: isUpdating } = useUpdateTrade();
@@ -80,12 +84,21 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
     if (trade) {
       // Update existing open trade
       updateTrade(
-        { tradeId: trade.id, data },
+        {
+          tradeId: trade.id,
+          data: {
+            ...data,
+            portfolioId: selectedPortfolioId || null
+          },
+          oldPortfolioId: trade.portfolioId
+        },
         {
           onSuccess: () => {
-            // Navigate to portfolio if one was selected, otherwise to trades list
-            if (selectedPortfolioId) {
-              navigate(`/portfolios/${selectedPortfolioId}`);
+            // Navigate back to where we came from
+            if (cameFromTradeList) {
+              navigate('/trades');
+            } else if (selectedPortfolioId || portfolioId) {
+              navigate(`/portfolios/${selectedPortfolioId || portfolioId}`);
             } else {
               navigate('/trades');
             }
@@ -97,8 +110,8 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
       createTrade(data, {
         onSuccess: () => {
           // Navigate to portfolio if one was selected, otherwise to trades list
-          if (selectedPortfolioId) {
-            navigate(`/portfolios/${selectedPortfolioId}`);
+          if (selectedPortfolioId || portfolioId) {
+            navigate(`/portfolios/${selectedPortfolioId || portfolioId}`);
           } else {
             navigate('/trades');
           }
@@ -124,6 +137,7 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
             allowNone={true}
             label="Portfolio"
             helpText="Optionally associate this trade with a portfolio for organization"
+            autoSelectDefault={!trade}
           />
         )}
 
@@ -294,7 +308,15 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/trades')}
+            onClick={() => {
+              if (cameFromTradeList) {
+                navigate('/trades');
+              } else if (selectedPortfolioId || portfolioId) {
+                navigate(`/portfolios/${selectedPortfolioId || portfolioId}`);
+              } else {
+                navigate('/trades');
+              }
+            }}
           >
             Cancel
           </button>

@@ -181,12 +181,12 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Exp</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Action</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Qty</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Premium</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Days</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Portfolio</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -217,7 +217,6 @@ export const TradeList = () => {
                   <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Symbol</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Type</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Strike</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>DTE</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Opened</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Closed</th>
@@ -226,6 +225,7 @@ export const TradeList = () => {
                     <th style={{ padding: '0.75rem', textAlign: 'right' }}>Close</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>P/L</th>
                     <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>% G/L</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Portfolio</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -344,13 +344,6 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
     }
   };
 
-  const formatAction = (action: string) => {
-    return action
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
   const daysToExpiration = calculateDaysToExpiration(trade.expirationDate);
   const daysInTrade = calculateDaysInOpenTrade(trade.openTradeDate);
   const getDTEColor = (dte: number) => {
@@ -381,7 +374,6 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
       <td style={{ padding: '0.75rem', textAlign: 'right', color: getDTEColor(daysToExpiration), fontWeight: daysToExpiration <= 7 ? 'bold' : 'normal' }}>
         {daysToExpiration}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{formatAction(trade.openAction)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{trade.openQuantity}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(trade.openPremium)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>
@@ -389,6 +381,25 @@ const TradeRow = ({ trade, canEdit, canDelete }: TradeRowProps) => {
       </td>
       <td style={{ padding: '0.75rem' }}>{formatDate(trade.openTradeDate)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{daysInTrade}</td>
+      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+        {trade.portfolioId && (
+          <Link
+            to={`/portfolios/${trade.portfolioId}`}
+            style={{
+              padding: '0.25rem 0.5rem',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              backgroundColor: '#e8f5e9',
+              color: '#2e7d32',
+              fontWeight: 'bold',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            P
+          </Link>
+        )}
+      </td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
           <Link
@@ -457,7 +468,6 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
           {trade.optionType.toUpperCase()}
         </span>
       </td>
-      <td style={{ padding: '0.75rem' }}>{formatStrikePrice(trade.strikePrice)}</td>
       <td style={{ padding: '0.75rem', textAlign: 'right', color: '#999' }}>
         {daysToExpiration}
       </td>
@@ -487,6 +497,25 @@ const ClosedTradeRow = ({ trade, canDelete }: ClosedTradeRowProps) => {
         }}
       >
         {percentGainLoss >= 0 ? '+' : ''}{percentGainLoss.toFixed(1)}%
+      </td>
+      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+        {trade.portfolioId && (
+          <Link
+            to={`/portfolios/${trade.portfolioId}`}
+            style={{
+              padding: '0.25rem 0.5rem',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              backgroundColor: '#e8f5e9',
+              color: '#2e7d32',
+              fontWeight: 'bold',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            P
+          </Link>
+        )}
       </td>
       <td style={{ padding: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>

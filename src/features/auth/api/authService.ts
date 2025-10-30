@@ -6,9 +6,18 @@ const REFRESH_TOKEN_KEY = import.meta.env.VITE_REFRESH_TOKEN_KEY || 'refresh_tok
 
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    console.log('authService.login: Attempting login for', credentials.email);
     const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    console.log('authService.login: Received response:', {
+      hasUser: !!data.user,
+      hasToken: !!data.token,
+      hasRefreshToken: !!data.refreshToken,
+      tokenPreview: data.token ? `${data.token.substring(0, 20)}...` : 'none',
+      user: data.user
+    });
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    console.log('authService.login: Tokens saved to localStorage');
     return data;
   },
 

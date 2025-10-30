@@ -93,25 +93,6 @@ export const Dashboard = () => {
       <h1 style={{ marginBottom: '2rem' }}>Welcome back, {user?.name}!</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        {/* Portfolios Overview */}
-        <div className="card">
-          <h3 style={{ marginBottom: '0.5rem' }}>Portfolios</h3>
-          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007bff', marginBottom: '0.5rem' }}>
-            {activePortfolios.length}
-          </p>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
-            Active portfolios tracking your equity positions
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Link to="/portfolios/new" className="btn btn-primary" style={{ flex: 1 }}>
-              Create Portfolio
-            </Link>
-            <Link to="/portfolios" className="btn btn-secondary" style={{ flex: 1 }}>
-              View All
-            </Link>
-          </div>
-        </div>
-
         {/* Options Trades Overview */}
         <div className="card">
           <h3 style={{ marginBottom: '0.5rem' }}>Options Trades</h3>
@@ -145,6 +126,25 @@ export const Dashboard = () => {
               New Trade
             </Link>
             <Link to="/trades" className="btn btn-secondary" style={{ flex: 1 }}>
+              View All
+            </Link>
+          </div>
+        </div>
+
+        {/* Portfolios Overview */}
+        <div className="card">
+          <h3 style={{ marginBottom: '0.5rem' }}>Portfolios</h3>
+          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007bff', marginBottom: '0.5rem' }}>
+            {activePortfolios.length}
+          </p>
+          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
+            Active portfolios tracking your equity positions
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link to="/portfolios/new" className="btn btn-primary" style={{ flex: 1 }}>
+              Create Portfolio
+            </Link>
+            <Link to="/portfolios" className="btn btn-secondary" style={{ flex: 1 }}>
               View All
             </Link>
           </div>
