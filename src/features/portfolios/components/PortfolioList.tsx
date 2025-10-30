@@ -1,6 +1,33 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolios, useDeletePortfolio, useSetDefaultPortfolio } from '../hooks/usePortfolios';
+import { usePortfolioPositions } from '../hooks/usePositions';
 import { formatDate } from '@/shared/utils/formatters';
+import { formatCurrency } from '@/shared/utils/calculations';
+
+// Component to fetch and display portfolio metrics
+const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
+  const { data: positions, isLoading } = usePortfolioPositions(portfolioId);
+
+  if (isLoading) {
+    return <span style={{ color: '#999', fontSize: '0.875rem' }}>Loading...</span>;
+  }
+
+  const positionCount = positions?.length || 0;
+  const totalValue = positions?.reduce((sum, p) => sum + (p.marketValue || p.costBasis), 0) || 0;
+
+  return (
+    <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
+      <span style={{ marginRight: '1rem' }}>
+        <strong>{positionCount}</strong> {positionCount === 1 ? 'position' : 'positions'}
+      </span>
+      {totalValue > 0 && (
+        <span>
+          Total Value: <strong>{formatCurrency(totalValue)}</strong>
+        </span>
+      )}
+    </div>
+  );
+};
 
 export const PortfolioList = () => {
   const navigate = useNavigate();
@@ -68,7 +95,8 @@ export const PortfolioList = () => {
                         {portfolio.description}
                       </p>
                     )}
-                    <p style={{ fontSize: '0.875rem', color: '#999', marginBottom: '0.5rem' }}>
+                    <PortfolioMetrics portfolioId={portfolio.id} />
+                    <p style={{ fontSize: '0.875rem', color: '#999', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
                       Created: {formatDate(portfolio.createdAt)}
                     </p>
                     {!portfolio.isDefault && (

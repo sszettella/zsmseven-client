@@ -280,6 +280,8 @@ export const CreatePortfolio = () => {
             <div style={{ border: '1px solid #e0e0e0', padding: '1rem', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
               <h3 style={{ marginBottom: '1rem' }}>{editingPositionId ? 'Edit Position' : 'Add Position'}</h3>
 
+              {/* Use div instead of form to prevent nested form error */}
+              <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="ticker">
@@ -370,11 +372,12 @@ export const CreatePortfolio = () => {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={handleSubmitPosition(handleAddPosition)}
+                  onClick={() => handleSubmitPosition(handleAddPosition)()}
                   style={{ fontSize: '0.875rem' }}
                 >
                   {editingPositionId ? 'Update Position' : 'Add Position'}
                 </button>
+              </div>
               </div>
             </div>
           )}

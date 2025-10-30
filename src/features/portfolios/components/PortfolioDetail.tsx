@@ -23,7 +23,7 @@ export const PortfolioDetail = () => {
 
   const handleDeletePosition = (positionId: string) => {
     if (confirm('Are you sure you want to delete this position?')) {
-      deletePosition(positionId);
+      deletePosition({ portfolioId: portfolioId!, positionId });
     }
   };
 

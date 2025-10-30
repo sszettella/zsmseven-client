@@ -5,6 +5,8 @@ import { useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, ClosingAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, calculateCloseTotalCost, calculateProfitLoss, formatCurrency } from '@/shared/utils/calculations';
 import { useNavigate } from 'react-router-dom';
+import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
+import { useState } from 'react';
 
 const closedTradeEditSchema = z.object({
   // Opening transaction fields
@@ -38,6 +40,12 @@ interface ClosedTradeEditFormProps {
 export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormProps) => {
   const navigate = useNavigate();
   const { mutate: updateTrade, isPending } = useUpdateTrade();
+
+  // Track selected portfolio separately from the form
+  // Only use portfolioId prop or trade's existing portfolioId, don't auto-select default
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | undefined>(
+    portfolioId || trade.portfolioId || undefined
+  );
 
   const {
     register,
@@ -92,6 +100,7 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
   const onSubmit = (data: ClosedTradeEditFormData) => {
     // Build update payload with all fields
     const updateData = {
+      portfolioId: selectedPortfolioId || null,
       symbol: data.symbol,
       optionType: data.optionType,
       strikePrice: data.strikePrice,
@@ -113,8 +122,9 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
       { tradeId: trade.id, data: updateData },
       {
         onSuccess: () => {
-          if (portfolioId) {
-            navigate(`/portfolios/${portfolioId}`);
+          // Navigate to the selected portfolio, or portfolioId prop, or trades list
+          if (selectedPortfolioId) {
+            navigate(`/portfolios/${selectedPortfolioId}`);
           } else {
             navigate('/trades');
           }
@@ -123,18 +133,25 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
     );
   };
 
-  const formatActionText = (action: string) => {
-    return action
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
   return (
     <div>
       <h2 style={{ marginBottom: '1.5rem' }}>Edit Closed Trade</h2>
 
       <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Portfolio Selection - only show if not explicitly set via prop */}
+        {!portfolioId && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <PortfolioSelector
+              value={selectedPortfolioId}
+              onChange={setSelectedPortfolioId}
+              allowNone={true}
+              autoSelectDefault={false}
+              label="Portfolio"
+              helpText="Optionally associate this trade with a portfolio for organization"
+            />
+          </div>
+        )}
+
         {/* Opening Transaction Section */}
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Opening Transaction</h3>
@@ -411,7 +428,7 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(portfolioId ? `/portfolios/${portfolioId}` : '/trades')}
+            onClick={() => navigate(selectedPortfolioId ? `/portfolios/${selectedPortfolioId}` : '/trades')}
           >
             Cancel
           </button>

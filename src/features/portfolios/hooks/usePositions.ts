@@ -26,11 +26,11 @@ export const usePortfolioPositions = (portfolioId: string) => {
 };
 
 // Get a single position
-export const usePosition = (positionId: string) => {
+export const usePosition = (portfolioId: string, positionId: string) => {
   return useQuery({
     queryKey: positionKeys.detail(positionId),
-    queryFn: () => getPosition(positionId),
-    enabled: !!positionId,
+    queryFn: () => getPosition(portfolioId, positionId),
+    enabled: !!portfolioId && !!positionId,
   });
 };
 
@@ -48,7 +48,7 @@ export const useCreatePosition = () => {
       });
       // Invalidate portfolio query to refresh metrics
       queryClient.invalidateQueries({
-        queryKey: ['portfolios', variables.portfolioId],
+        queryKey: ['portfolio', variables.portfolioId],
       });
     },
   });
@@ -59,8 +59,8 @@ export const useUpdatePosition = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ positionId, data }: { positionId: string; data: UpdatePositionData }) =>
-      updatePosition(positionId, data),
+    mutationFn: ({ portfolioId, positionId, data }: { portfolioId: string; positionId: string; data: UpdatePositionData }) =>
+      updatePosition(portfolioId, positionId, data),
     onSuccess: (position) => {
       // Invalidate the specific position
       queryClient.invalidateQueries({
@@ -72,7 +72,7 @@ export const useUpdatePosition = () => {
       });
       // Invalidate portfolio query to refresh metrics
       queryClient.invalidateQueries({
-        queryKey: ['portfolios', position.portfolioId],
+        queryKey: ['portfolio', position.portfolioId],
       });
     },
   });
@@ -83,8 +83,9 @@ export const useDeletePosition = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (positionId: string) => deletePosition(positionId),
-    onSuccess: (_, positionId) => {
+    mutationFn: ({ portfolioId, positionId }: { portfolioId: string; positionId: string }) =>
+      deletePosition(portfolioId, positionId),
+    onSuccess: (_, variables) => {
       // Invalidate all position queries
       queryClient.invalidateQueries({
         queryKey: positionKeys.all,
@@ -92,6 +93,10 @@ export const useDeletePosition = () => {
       // Invalidate all portfolio queries to refresh metrics
       queryClient.invalidateQueries({
         queryKey: ['portfolios'],
+      });
+      // Invalidate specific portfolio
+      queryClient.invalidateQueries({
+        queryKey: ['portfolio', variables.portfolioId],
       });
     },
   });
@@ -111,7 +116,7 @@ export const useBatchUpdatePrices = () => {
       });
       // Invalidate portfolio query to refresh metrics
       queryClient.invalidateQueries({
-        queryKey: ['portfolios', variables.portfolioId],
+        queryKey: ['portfolio', variables.portfolioId],
       });
     },
   });

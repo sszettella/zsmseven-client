@@ -6,6 +6,7 @@ interface PortfolioSelectorProps {
   allowNone?: boolean;
   label?: string;
   helpText?: string;
+  autoSelectDefault?: boolean;
 }
 
 export const PortfolioSelector = ({
@@ -14,12 +15,13 @@ export const PortfolioSelector = ({
   allowNone = true,
   label = 'Portfolio',
   helpText = 'Optionally associate this trade with a portfolio for organization',
+  autoSelectDefault = true,
 }: PortfolioSelectorProps) => {
   const { data: portfolios, isLoading } = usePortfolios();
   const { data: defaultPortfolio } = useDefaultPortfolio();
 
-  // Auto-select default portfolio if no value is set
-  const effectiveValue = value || defaultPortfolio?.id || '';
+  // Auto-select default portfolio if no value is set (only if autoSelectDefault is true)
+  const effectiveValue = value || (autoSelectDefault ? defaultPortfolio?.id : undefined) || '';
 
   const activePortfolios = portfolios?.filter((p) => p.isActive) || [];
 
@@ -59,7 +61,7 @@ export const PortfolioSelector = ({
           {helpText}
         </p>
       )}
-      {defaultPortfolio && !value && (
+      {autoSelectDefault && defaultPortfolio && !value && (
         <p style={{ fontSize: '0.875rem', color: '#28a745', marginTop: '0.25rem' }}>
           Using default portfolio: <strong>{defaultPortfolio.name}</strong>
         </p>

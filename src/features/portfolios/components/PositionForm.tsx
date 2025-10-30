@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Position, CreatePositionData, UpdatePositionData, formatTicker } from '@/types/position';
+import { useCreatePosition, useUpdatePosition } from '../hooks/usePositions';
 
 interface PositionFormProps {
   portfolioId: string;
@@ -9,6 +10,9 @@ interface PositionFormProps {
 }
 
 export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: PositionFormProps) => {
+  const { mutate: createPosition, isPending: isCreating } = useCreatePosition();
+  const { mutate: updatePosition, isPending: isUpdating } = useUpdatePosition();
+
   const [formData, setFormData] = useState<CreatePositionData | UpdatePositionData>({
     ticker: position?.ticker || '',
     shares: position?.shares || 0,
@@ -18,6 +22,7 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isPending = isCreating || isUpdating;
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -55,25 +60,42 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
       return;
     }
 
-    try {
-      // Format ticker to uppercase
-      const dataToSubmit = {
-        ...formData,
-        ticker: formatTicker(formData.ticker),
-      };
+    // Format ticker to uppercase
+    const dataToSubmit = {
+      ...formData,
+      ticker: formatTicker(formData.ticker),
+    };
 
-      // TODO: Integrate with API service
-      // if (position) {
-      //   await updatePosition(position.id, dataToSubmit);
-      // } else {
-      //   await createPosition(portfolioId, dataToSubmit);
-      // }
-
-      console.log('Position data:', dataToSubmit);
-      onSuccess();
-    } catch (error) {
-      console.error('Error saving position:', error);
-      setErrors({ submit: 'Failed to save position. Please try again.' });
+    if (position) {
+      // Update existing position
+      updatePosition(
+        { portfolioId, positionId: position.id, data: dataToSubmit },
+        {
+          onSuccess: () => {
+            console.log('Position updated successfully');
+            onSuccess();
+          },
+          onError: (error: any) => {
+            console.error('Error updating position:', error);
+            setErrors({ submit: error.response?.data?.error?.message || 'Failed to update position. Please try again.' });
+          },
+        }
+      );
+    } else {
+      // Create new position
+      createPosition(
+        { portfolioId, data: dataToSubmit },
+        {
+          onSuccess: () => {
+            console.log('Position created successfully');
+            onSuccess();
+          },
+          onError: (error: any) => {
+            console.error('Error creating position:', error);
+            setErrors({ submit: error.response?.data?.error?.message || 'Failed to create position. Please try again.' });
+          },
+        }
+      );
     }
   };
 
@@ -205,14 +227,16 @@ export const PositionForm = ({ portfolioId, position, onSuccess, onCancel }: Pos
             type="button"
             className="btn btn-secondary"
             onClick={onCancel}
+            disabled={isPending}
           >
             Cancel
           </button>
           <button
             type="submit"
             className="btn btn-primary"
+            disabled={isPending}
           >
-            {position ? 'Update Position' : 'Add Position'}
+            {isPending ? 'Saving...' : (position ? 'Update Position' : 'Add Position')}
           </button>
         </div>
       </div>

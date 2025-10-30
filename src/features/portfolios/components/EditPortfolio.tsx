@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,9 +53,13 @@ export const EditPortfolio = () => {
   const [isAddingPosition, setIsAddingPosition] = useState(false);
   const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
 
-  // Initialize positions from existing data
+  // Initialize positions from existing data only once when component mounts
+  // Use a ref to track if we've initialized to prevent overwriting local changes
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    if (existingPositions && positions.length === 0) {
+    if (existingPositions && !hasInitialized.current) {
+      console.log('Initializing positions from backend:', existingPositions);
       const mappedPositions: PositionInput[] = existingPositions.map((pos) => ({
         id: pos.id,
         ticker: pos.ticker,
@@ -67,8 +71,9 @@ export const EditPortfolio = () => {
         isNew: false,
       }));
       setPositions(mappedPositions);
+      hasInitialized.current = true;
     }
-  }, [existingPositions, positions.length]);
+  }, [existingPositions]);
 
   const {
     register: registerPortfolio,
@@ -178,7 +183,10 @@ export const EditPortfolio = () => {
           const deletePromises = deletedPositionIds.map((id) => {
             console.log('Deleting position:', id);
             return new Promise((resolve, reject) => {
-              deletePosition(id, { onSuccess: resolve, onError: reject });
+              deletePosition(
+                { portfolioId: portfolioId!, positionId: id },
+                { onSuccess: resolve, onError: reject }
+              );
             });
           });
 
@@ -214,7 +222,7 @@ export const EditPortfolio = () => {
 
               return new Promise((resolve, reject) => {
                 updatePosition(
-                  { positionId: position.id!, data: positionData },
+                  { portfolioId: portfolioId!, positionId: position.id!, data: positionData },
                   {
                     onSuccess: (result) => {
                       console.log('Position updated successfully:', result);
@@ -231,12 +239,19 @@ export const EditPortfolio = () => {
           });
 
           try {
-            await Promise.all([...deletePromises, ...positionPromises]);
+            const results = await Promise.all([...deletePromises, ...positionPromises]);
+            console.log('All position operations completed successfully:', results);
             navigate(`/portfolios/${portfolioId}`);
-          } catch (error) {
+          } catch (error: any) {
             console.error('Error updating positions:', error);
-            // Still navigate to the portfolio even if some operations failed
-            navigate(`/portfolios/${portfolioId}`);
+            console.error('Error details:', {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status,
+            });
+            // Show error to user
+            alert(`Error saving positions: ${error.response?.data?.error?.message || error.message}\n\nPlease check the console for details.`);
+            // Don't navigate away so user can fix the issue
           }
         },
       }
@@ -393,6 +408,8 @@ export const EditPortfolio = () => {
             <div style={{ border: '1px solid #e0e0e0', padding: '1rem', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
               <h3 style={{ marginBottom: '1rem' }}>{editingPositionId ? 'Edit Position' : 'Add Position'}</h3>
 
+              {/* Use div instead of form to prevent nested form error */}
+              <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="ticker">
@@ -483,11 +500,12 @@ export const EditPortfolio = () => {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={handleSubmitPosition(handleAddPosition)}
+                  onClick={() => handleSubmitPosition(handleAddPosition)()}
                   style={{ fontSize: '0.875rem' }}
                 >
                   {editingPositionId ? 'Update Position' : 'Add Position'}
                 </button>
+              </div>
               </div>
             </div>
           )}

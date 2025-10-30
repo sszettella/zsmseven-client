@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePortfolios } from '../hooks/usePortfolios';
+import { usePortfolioPositions } from '../hooks/usePositions';
 import { useOpenTrades, useTrades } from '@/features/trades/hooks/useTrades';
 import { TradeStatus, Trade } from '@/types/trade';
 import { formatCurrency } from '@/shared/utils/calculations';
@@ -47,6 +48,31 @@ const getAverageClosedProfitPercent = (trades: Trade[]): number => {
   return totalProfitPercent / trades.length;
 };
 
+// Component to fetch and display portfolio metrics
+const PortfolioMetrics = ({ portfolioId }: { portfolioId: string }) => {
+  const { data: positions, isLoading } = usePortfolioPositions(portfolioId);
+
+  if (isLoading) {
+    return <span style={{ color: '#999', fontSize: '0.875rem' }}>Loading...</span>;
+  }
+
+  const positionCount = positions?.length || 0;
+  const totalValue = positions?.reduce((sum, p) => sum + (p.marketValue || p.costBasis), 0) || 0;
+
+  return (
+    <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
+      <div style={{ marginBottom: '0.25rem' }}>
+        <strong>{positionCount}</strong> {positionCount === 1 ? 'position' : 'positions'}
+      </div>
+      {totalValue > 0 && (
+        <div>
+          Total Value: <strong>{formatCurrency(totalValue)}</strong>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Dashboard = () => {
   const { user } = useAuth();
   const { data: portfolios } = usePortfolios();
@@ -89,24 +115,12 @@ export const Dashboard = () => {
         {/* Options Trades Overview */}
         <div className="card">
           <h3 style={{ marginBottom: '0.5rem' }}>Options Trades</h3>
-          <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
-            <div>
-              <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#28a745', marginBottom: '0.25rem' }}>
-                {openTrades?.length || 0}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: '#666', margin: 0 }}>
-                Open
-              </p>
-            </div>
-            <div>
-              <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007bff', marginBottom: '0.25rem' }}>
-                {closedTrades.length}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: '#666', margin: 0 }}>
-                Closed
-              </p>
-            </div>
-          </div>
+          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#28a745', marginBottom: '0.25rem' }}>
+            {openTrades?.length || 0}
+          </p>
+          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>
+            Open
+          </p>
           {closedTrades.length > 0 && (
             <>
               <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>
@@ -190,6 +204,7 @@ export const Dashboard = () => {
                         : portfolio.description}
                     </p>
                   )}
+                  <PortfolioMetrics portfolioId={portfolio.id} />
                   <div style={{ fontSize: '0.875rem', color: '#999', marginTop: '0.5rem' }}>
                     Click to view positions →
                   </div>

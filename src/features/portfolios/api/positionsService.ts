@@ -7,13 +7,12 @@ import {
   BatchPriceUpdateResponse,
 } from '@/types/position';
 
-const POSITIONS_BASE_URL = '/positions';
-
 // Get all positions for a portfolio
 export const getPortfolioPositions = async (portfolioId: string): Promise<Position[]> => {
   try {
     const response = await apiClient.get(`/portfolios/${portfolioId}/positions`);
-    return response.data.positions || [];
+    // API returns array directly according to spec, not wrapped in {positions: [...]}
+    return Array.isArray(response.data) ? response.data : (response.data.positions || []);
   } catch (error: any) {
     // If endpoint doesn't exist or returns 404, return empty array
     if (error.response?.status === 404 || !error.response) {
@@ -25,9 +24,10 @@ export const getPortfolioPositions = async (portfolioId: string): Promise<Positi
 };
 
 // Get a single position by ID
-export const getPosition = async (positionId: string): Promise<Position> => {
-  const response = await apiClient.get(`${POSITIONS_BASE_URL}/${positionId}`);
-  return response.data.position;
+export const getPosition = async (portfolioId: string, positionId: string): Promise<Position> => {
+  const response = await apiClient.get(`/portfolios/${portfolioId}/positions/${positionId}`);
+  // API returns position directly according to spec
+  return response.data;
 };
 
 // Create a new position
@@ -36,21 +36,24 @@ export const createPosition = async (
   data: CreatePositionData
 ): Promise<Position> => {
   const response = await apiClient.post(`/portfolios/${portfolioId}/positions`, data);
-  return response.data.position;
+  // API returns position directly according to spec
+  return response.data;
 };
 
 // Update an existing position
 export const updatePosition = async (
+  portfolioId: string,
   positionId: string,
   data: UpdatePositionData
 ): Promise<Position> => {
-  const response = await apiClient.put(`${POSITIONS_BASE_URL}/${positionId}`, data);
-  return response.data.position;
+  const response = await apiClient.put(`/portfolios/${portfolioId}/positions/${positionId}`, data);
+  // API returns position directly according to spec
+  return response.data;
 };
 
 // Delete a position
-export const deletePosition = async (positionId: string): Promise<void> => {
-  await apiClient.delete(`${POSITIONS_BASE_URL}/${positionId}`);
+export const deletePosition = async (portfolioId: string, positionId: string): Promise<void> => {
+  await apiClient.delete(`/portfolios/${portfolioId}/positions/${positionId}`);
 };
 
 // Batch update current prices for multiple positions
