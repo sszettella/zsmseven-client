@@ -85,41 +85,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Bump version (patch)
-        id: bump-version
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          npm version patch -m "chore: bump version to %s [skip ci]"
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          git push origin main --follow-tags
-
-      - name: Merge version bump back to develop
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          git fetch origin develop
-          git checkout develop
-          git merge main --no-edit -m "chore: merge version bump from main [skip ci]"
-          git push origin develop
-
-      - name: Bump develop version ahead of production
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          git checkout develop
-          npm version patch -m "chore: bump develop version ahead of production"
-          git push origin develop --follow-tags
-
-      - name: Get version from package.json
+      - name: Get version from package.json (from develop via main)
         id: package-version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION=$(node -p "require('./package.json').version")
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "version=${{ steps.bump-version.outputs.version }}" >> $GITHUB_OUTPUT
-          fi
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build application
         env:
@@ -148,3 +118,22 @@ jobs:
         if: vars.PROD_CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ vars.PROD_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Bump develop version for next release
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin develop
+          git checkout develop
+          npm version patch -m "chore: bump develop version ahead of production"
+          git push origin develop --follow-tags
+
+      - name: Trigger develop redeployment
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches \
+            -d '{"ref":"develop"}'
