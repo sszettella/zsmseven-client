@@ -112,7 +112,13 @@ export const Dashboard = () => {
   const last30DaysPL = getLast30DaysPL(closedTrades);
   const avgClosedProfitPercent = getAverageClosedProfitPercent(closedTrades);
 
-  const activePortfolios = portfolios?.filter(p => p.isActive) || [];
+  const activePortfolios = portfolios?.filter(p => p.isActive).sort((a, b) => {
+    // Sort default portfolio first
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    // Then sort alphabetically by name
+    return a.name.localeCompare(b.name);
+  }) || [];
 
   return (
     <div>
