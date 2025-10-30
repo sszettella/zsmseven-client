@@ -154,8 +154,8 @@ export const PortfolioList = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>My Portfolios</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ margin: 0 }}>Portfolios</h1>
         <button
           className="btn btn-primary"
           onClick={() => navigate('/portfolios/new')}
@@ -171,9 +171,9 @@ export const PortfolioList = () => {
         {sortedPortfolios?.map((portfolio) => (
           <div key={portfolio.id} className="card">
             <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                <div className="portfolio-card-content">
+                  <div className="portfolio-card-main">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                       <h3 style={{ margin: 0 }}>
                         <Link
                           to={`/portfolios/${portfolio.id}`}
@@ -183,26 +183,12 @@ export const PortfolioList = () => {
                         </Link>
                       </h3>
                       {portfolio.isDefault && (
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                        }}>
+                        <span className="portfolio-badge default-badge">
                           DEFAULT FOR TRADES
                         </span>
                       )}
                       {!portfolio.isActive && (
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: '#ffc107',
-                          color: '#000',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                        }}>
+                        <span className="portfolio-badge inactive-badge">
                           INACTIVE
                         </span>
                       )}
@@ -226,7 +212,7 @@ export const PortfolioList = () => {
                       </button>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="portfolio-card-actions">
                     <button
                       className="btn btn-secondary"
                       onClick={() => navigate(`/portfolios/${portfolio.id}/edit`)}
@@ -249,6 +235,67 @@ export const PortfolioList = () => {
           </div>
         ))}
       </div>
+
+      {/* Mobile-responsive styles */}
+      <style>{`
+        .portfolio-card-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: start;
+          gap: 1rem;
+        }
+
+        .portfolio-card-main {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .portfolio-card-actions {
+          display: flex;
+          gap: 0.5rem;
+          flex-shrink: 0;
+        }
+
+        .portfolio-badge {
+          padding: 0.25rem 0.5rem;
+          color: white;
+          border-radius: 4px;
+          fontSize: 0.75rem;
+          font-weight: bold;
+          white-space: nowrap;
+        }
+
+        .default-badge {
+          background-color: #28a745;
+        }
+
+        .inactive-badge {
+          background-color: #ffc107;
+          color: #000;
+        }
+
+        @media (max-width: 768px) {
+          .portfolio-card-content {
+            flex-direction: column;
+          }
+
+          .portfolio-card-actions {
+            width: 100%;
+            flex-direction: column;
+          }
+
+          .portfolio-card-actions .btn {
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .portfolio-badge {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.4rem;
+          }
+        }
+      `}</style>
 
       {portfolios?.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
