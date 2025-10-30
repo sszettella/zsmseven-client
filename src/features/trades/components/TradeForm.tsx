@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { useCreateTrade, useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, formatCurrency } from '@/shared/utils/calculations';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
 import { useState } from 'react';
 
@@ -124,6 +124,12 @@ export const TradeForm = ({ portfolioId, trade }: TradeFormProps) => {
 
   return (
     <div>
+      <div style={{ marginBottom: '2rem' }}>
+        <Link to="/trades" style={{ color: '#007bff', textDecoration: 'none' }}>
+          ← Back to Trades
+        </Link>
+      </div>
+
       <h2 style={{ marginBottom: '1.5rem' }}>
         {trade ? 'Edit Trade' : 'Open New Trade'}
       </h2>

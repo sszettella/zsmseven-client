@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { useUpdateTrade } from '../hooks/useTrades';
 import { Trade, OpeningAction, ClosingAction, OptionType } from '@/types/trade';
 import { calculateOpenTotalCost, calculateCloseTotalCost, calculateProfitLoss, formatCurrency } from '@/shared/utils/calculations';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PortfolioSelector } from '@/features/portfolios/components/PortfolioSelector';
 import { useState } from 'react';
 
@@ -145,6 +145,12 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
 
   return (
     <div>
+      <div style={{ marginBottom: '2rem' }}>
+        <Link to="/trades" style={{ color: '#007bff', textDecoration: 'none' }}>
+          ← Back to Trades
+        </Link>
+      </div>
+
       <h2 style={{ marginBottom: '1.5rem' }}>Edit Closed Trade</h2>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -161,6 +167,24 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
             />
           </div>
         )}
+
+        {/* Profit/Loss Summary */}
+        <div
+          className="card"
+          style={{
+            marginBottom: '1.5rem',
+            backgroundColor: profitLoss >= 0 ? '#d4edda' : '#f8d7da',
+          }}
+        >
+          <div style={{ fontSize: '1.125rem', fontWeight: 'bold' }}>
+            <div style={{ color: '#666', fontSize: '0.875rem', fontWeight: 'normal', marginBottom: '0.5rem' }}>
+              Total Profit/Loss:
+            </div>
+            <span style={{ color: profitLoss >= 0 ? '#155724' : '#721c24', fontSize: '1.5rem' }}>
+              {profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)}
+            </span>
+          </div>
+        </div>
 
         {/* Opening Transaction Section */}
         <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -412,24 +436,6 @@ export const ClosedTradeEditForm = ({ trade, portfolioId }: ClosedTradeEditFormP
               rows={3}
               placeholder="Optional trade notes..."
             />
-          </div>
-        </div>
-
-        {/* Profit/Loss Summary */}
-        <div
-          className="card"
-          style={{
-            marginBottom: '1.5rem',
-            backgroundColor: profitLoss >= 0 ? '#d4edda' : '#f8d7da',
-          }}
-        >
-          <div style={{ fontSize: '1.125rem', fontWeight: 'bold' }}>
-            <div style={{ color: '#666', fontSize: '0.875rem', fontWeight: 'normal', marginBottom: '0.5rem' }}>
-              Total Profit/Loss:
-            </div>
-            <span style={{ color: profitLoss >= 0 ? '#155724' : '#721c24', fontSize: '1.5rem' }}>
-              {profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)}
-            </span>
           </div>
         </div>
 
