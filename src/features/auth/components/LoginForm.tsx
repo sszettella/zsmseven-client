@@ -38,7 +38,7 @@ export const LoginForm = () => {
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px' }}>
       <div className="card">
-        <h2 style={{ marginBottom: '1.5rem' }}>Login to Financial Tracker</h2>
+        <h2 style={{ marginBottom: '1.5rem' }}>Login to ZSM7</h2>
         
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="form-group">

@@ -32,6 +32,8 @@ jobs:
           VITE_API_TIMEOUT: 30000
           VITE_TOKEN_KEY: auth_token
           VITE_REFRESH_TOKEN_KEY: refresh_token
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
         run: npm run build
 
       - name: Configure AWS credentials
@@ -78,6 +80,8 @@ jobs:
           VITE_API_TIMEOUT: 30000
           VITE_TOKEN_KEY: auth_token
           VITE_REFRESH_TOKEN_KEY: refresh_token
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
         run: npm run build
 
       - name: Configure AWS credentials
