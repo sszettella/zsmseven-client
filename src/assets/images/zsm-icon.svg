@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90" width="100" height="90">
+  <defs>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8C42;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#004E89;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1A659E;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Geometric icon combining upward growth arrow with tech elements -->
+  <g id="icon">
+    <!-- Base hexagon shape (tech/innovation) -->
+    <path d="M 20 30 L 50 15 L 80 30 L 80 60 L 50 75 L 20 60 Z"
+          fill="url(#blueGrad)" opacity="0.3"/>
+
+    <!-- Inner rising graph/arrow shape -->
+    <path d="M 28 68 L 38 58 L 38 64 L 50 46 L 62 56 L 62 50 L 72 35"
+          stroke="url(#orangeGrad)" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Upward arrow point -->
+    <path d="M 72 35 L 68 42 M 72 35 L 65 40"
+          stroke="url(#orangeGrad)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+    <!-- Tech nodes/connection points -->
+    <circle cx="28" cy="68" r="4" fill="#FF6B35"/>
+    <circle cx="38" cy="58" r="4" fill="#FF6B35"/>
+    <circle cx="50" cy="46" r="4" fill="#FF6B35"/>
+    <circle cx="62" cy="56" r="4" fill="#FF6B35"/>
+    <circle cx="72" cy="35" r="4" fill="#FF6B35"/>
+
+    <!-- Outer frame suggesting circuit/digital -->
+    <rect x="10" y="5" width="80" height="80" rx="8"
+          stroke="url(#blueGrad)" stroke-width="2.5" fill="none"/>
+  </g>
+</svg>

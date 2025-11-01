@@ -31,6 +31,9 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Track if we've already redirected to avoid loops
+let hasRedirected = false;
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
@@ -46,18 +49,21 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Only redirect to login if it's NOT a login or register attempt
       const isAuthEndpoint = error.config?.url?.includes('/auth/login') ||
-                             error.config?.url?.includes('/auth/register');
+                             error.config?.url?.includes('/auth/register') ||
+                             error.config?.url?.includes('/auth/refresh');
 
       console.log('401 Unauthorized:', {
         url: error.config?.url,
         isAuthEndpoint,
         errorMessage: error.response?.data?.message || error.message,
-        headers: error.config?.headers
+        headers: error.config?.headers,
+        hasRedirected
       });
 
-      if (!isAuthEndpoint) {
+      if (!isAuthEndpoint && !hasRedirected) {
         // Handle unauthorized - clear all auth data and redirect to login
         console.warn('Clearing auth data and redirecting to login due to 401');
+        hasRedirected = true;
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('auth_user');

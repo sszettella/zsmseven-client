@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { usePortfolio } from '../hooks/usePortfolios';
+import { usePortfolio, usePortfolioAnalysis } from '../hooks/usePortfolios';
 import { usePortfolioPositions, useDeletePosition } from '../hooks/usePositions';
 import { usePortfolioYield } from '../hooks/usePortfolioYield';
 import { formatDate } from '@/shared/utils/formatters';
 import { PositionList } from './PositionList';
+import { OpportunityIndex } from './OpportunityIndex';
 import { useTrades } from '@/features/trades/hooks/useTrades';
 import { TradeStatus } from '@/types/trade';
 import { formatCurrency } from '@/shared/utils/calculations';
@@ -55,8 +56,18 @@ export const PortfolioDetail = () => {
   const { data: portfolio, isLoading: portfolioLoading } = usePortfolio(portfolioId!);
   const { data: positions, isLoading: positionsLoading } = usePortfolioPositions(portfolioId!);
   const { data: trades, isLoading: tradesLoading } = useTrades(portfolioId);
+  const { data: analysis, isLoading: analysisLoading, error: analysisError } = usePortfolioAnalysis(portfolioId!, false);
   const yieldMetrics = usePortfolioYield(portfolioId!);
   const { mutate: deletePosition } = useDeletePosition();
+
+  // Debug: Log analysis data
+  console.log('Portfolio Analysis Debug:', {
+    portfolioId,
+    isLoading: analysisLoading,
+    hasData: !!analysis,
+    error: analysisError,
+    analysis
+  });
 
   const [showTradesSection, setShowTradesSection] = useState(false);
   const [openTradesSortKey, setOpenTradesSortKey] = useState<string>('symbol');
@@ -248,6 +259,67 @@ export const PortfolioDetail = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Opportunity Index - AI Analysis */}
+      {/* Show loading state */}
+      {analysisLoading && (
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#333' }}>
+            Opportunity Index
+          </h3>
+          <p style={{ color: '#666', fontSize: '0.875rem' }}>Loading AI analysis...</p>
+        </div>
+      )}
+
+      {/* Show error state if API call failed */}
+      {!analysisLoading && analysisError && (
+        <div className="card" style={{ marginBottom: '2rem', backgroundColor: '#f8d7da', borderColor: '#dc3545' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#721c24' }}>
+            Analysis Not Available
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: '#721c24', margin: 0 }}>
+            Portfolio analysis has not been generated yet. Analysis is typically generated daily for portfolios with positions.
+          </p>
+          <details style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#721c24' }}>
+            <summary style={{ cursor: 'pointer' }}>Technical Details</summary>
+            <pre style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', overflow: 'auto', color: '#333' }}>
+              {JSON.stringify(analysisError, null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
+
+      {/* Show analysis data with debug info */}
+      {!analysisLoading && !analysisError && analysis && (
+        <>
+          {/* Debug: Show if analysis exists but no opportunities */}
+          {(!analysis.parsed_data?.opportunities || analysis.parsed_data.opportunities.length === 0) && (
+            <div className="card" style={{ marginBottom: '2rem', backgroundColor: '#fff3cd', borderColor: '#ffc107' }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: '#856404' }}>
+                Portfolio Analysis Available
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#856404', margin: 0 }}>
+                Analysis data received but no opportunity scores available yet. The AI analysis may still be processing position opportunities.
+              </p>
+              {/* Debug info */}
+              <details style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
+                <summary style={{ cursor: 'pointer' }}>Debug Info (Click to expand full analysis data)</summary>
+                <pre style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: '#f8f9fa', borderRadius: '4px', overflow: 'auto', maxHeight: '300px' }}>
+                  {JSON.stringify(analysis, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+
+          {/* Show OpportunityIndex when data is available */}
+          {analysis.parsed_data?.opportunities && analysis.parsed_data.opportunities.length > 0 && (
+            <OpportunityIndex
+              opportunities={analysis.parsed_data.opportunities}
+              isLoading={analysisLoading}
+            />
+          )}
+        </>
       )}
 
       {/* Positions Section */}

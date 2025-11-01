@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLogout } from '@/features/auth/hooks/useAuth';
+import iconLogo from '@/assets/images/zsm-icon.svg';
 
 export const Navigation = () => {
   const { user, isAdmin } = useAuth();
@@ -22,7 +23,7 @@ export const Navigation = () => {
       style={{
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
-        padding: '1rem 0',
+        padding: '0.5rem 0',
         boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
       }}
     >
@@ -30,8 +31,8 @@ export const Navigation = () => {
         {/* Desktop Navigation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flex: 1 }}>
-            <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#333' }}>
-              ZSM7
+            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+              <img src={iconLogo} alt="ZSM Properties" style={{ height: '40px', width: 'auto' }} />
             </Link>
             <div
               className="desktop-menu"

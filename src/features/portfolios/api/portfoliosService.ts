@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client';
-import { Portfolio, CreatePortfolioData, UpdatePortfolioData } from '@/types/portfolio';
+import { Portfolio, CreatePortfolioData, UpdatePortfolioData, PortfolioAnalysis } from '@/types/portfolio';
 
 export const portfoliosService = {
   getAll: async (): Promise<Portfolio[]> => {
@@ -50,5 +50,43 @@ export const portfoliosService = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/portfolios/${id}`);
+  },
+
+  getAnalysis: async (id: string, includeDetails: boolean = false): Promise<PortfolioAnalysis> => {
+    const { data } = await apiClient.get<any>(
+      `/portfolios/${id}/analysis`,
+      {
+        params: {
+          limit: 1,
+          includeDetails,
+        },
+      }
+    );
+
+    // Handle case where parsed_data is a JSON string instead of an object
+    if (data && typeof data.parsed_data === 'string') {
+      try {
+        data.parsed_data = JSON.parse(data.parsed_data);
+      } catch (e) {
+        console.error('Failed to parse parsed_data:', e);
+      }
+    }
+
+    // Transform the API response to match our TypeScript interface
+    // The API returns an array directly in parsed_data, with fields: score, reason, price, rsi, ma50
+    // We need to transform it to match PositionOpportunity interface
+    if (data && Array.isArray(data.parsed_data)) {
+      data.parsed_data = {
+        opportunities: data.parsed_data.map((item: any) => ({
+          ticker: item.ticker,
+          opportunityScore: item.score,
+          reasoning: item.reason,
+          weight_percent: item.weight_percent,
+          pl_percent: item.pl_percent,
+        }))
+      };
+    }
+
+    return data as PortfolioAnalysis;
   },
 };

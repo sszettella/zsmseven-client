@@ -12,6 +12,8 @@ interface PositionListProps {
 export const PositionList = ({ portfolioId, positions, onDeletePosition }: PositionListProps) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<string>('ticker');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const handleDelete = (positionId: string, ticker: string) => {
     if (confirm(`Are you sure you want to delete position ${ticker}?`)) {
@@ -19,7 +21,63 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
     }
   };
 
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIndicator = ({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }) => (
+    <span style={{ marginLeft: '0.25rem', fontSize: '0.75rem', opacity: active ? 1 : 0.3 }}>
+      {direction === 'asc' ? '▲' : '▼'}
+    </span>
+  );
+
   const editingPosition = positions.find(p => p.id === editingId);
+
+  // Helper to format currency without decimals
+  const formatCurrencyNoDecimals = (value: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Sort positions
+  const sortedPositions = [...positions].sort((a, b) => {
+    let aVal: any = a[sortKey as keyof Position];
+    let bVal: any = b[sortKey as keyof Position];
+
+    // Handle special calculated field
+    if (sortKey === 'plPercent') {
+      aVal = calculateUnrealizedPLPercent(a);
+      bVal = calculateUnrealizedPLPercent(b);
+    }
+
+    // Handle undefined/null values
+    if (aVal === undefined || aVal === null) aVal = 0;
+    if (bVal === undefined || bVal === null) bVal = 0;
+
+    // Handle numeric fields
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+
+    // Handle string fields
+    const aStr = String(aVal || '').toLowerCase();
+    const bStr = String(bVal || '').toLowerCase();
+
+    if (sortDir === 'asc') {
+      return aStr.localeCompare(bStr);
+    } else {
+      return bStr.localeCompare(aStr);
+    }
+  });
 
   // Calculate totals
   const totalCostBasis = positions.reduce((sum, p) => sum + p.costBasis, 0);
@@ -73,11 +131,11 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>Cost Basis</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatCurrency(totalCostBasis)}</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatCurrencyNoDecimals(totalCostBasis)}</div>
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>Market Value</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatCurrency(totalMarketValue)}</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{formatCurrencyNoDecimals(totalMarketValue)}</div>
               </div>
               <div>
                 <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.25rem' }}>Unrealized P&L</div>
@@ -86,9 +144,9 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
                   fontWeight: 'bold',
                   color: totalUnrealizedPL >= 0 ? '#28a745' : '#dc3545'
                 }}>
-                  {totalUnrealizedPL >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPL)}
+                  {totalUnrealizedPL >= 0 ? '+' : ''}{formatCurrencyNoDecimals(totalUnrealizedPL)}
                   <span style={{ fontSize: '1rem', marginLeft: '0.5rem' }}>
-                    ({totalUnrealizedPLPercent >= 0 ? '+' : ''}{totalUnrealizedPLPercent.toFixed(2)}%)
+                    ({totalUnrealizedPLPercent >= 0 ? '+' : ''}{totalUnrealizedPLPercent.toFixed(1)}%)
                   </span>
                 </div>
               </div>
@@ -97,28 +155,76 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
 
           {/* Positions Table */}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                  <th style={{ padding: '1rem', textAlign: 'left' }}>Ticker</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Shares</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Avg Cost</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Cost Basis</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Current Price</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Market Value</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Unrealized P&L</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>% Gain/Loss</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
+                <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #e0e0e0' }}>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('ticker')}
+                  >
+                    Ticker
+                    <SortIndicator active={sortKey === 'ticker'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('shares')}
+                  >
+                    Shares
+                    <SortIndicator active={sortKey === 'shares'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('currentPrice')}
+                  >
+                    Current Price
+                    <SortIndicator active={sortKey === 'currentPrice'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('averageCost')}
+                  >
+                    Avg Cost
+                    <SortIndicator active={sortKey === 'averageCost'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('costBasis')}
+                  >
+                    Cost Basis
+                    <SortIndicator active={sortKey === 'costBasis'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('marketValue')}
+                  >
+                    Market Value
+                    <SortIndicator active={sortKey === 'marketValue'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('unrealizedPL')}
+                  >
+                    Unrealized P&L
+                    <SortIndicator active={sortKey === 'unrealizedPL'} direction={sortDir} />
+                  </th>
+                  <th
+                    style={{ padding: '0.5rem', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => handleSort('plPercent')}
+                  >
+                    % Gain/Loss
+                    <SortIndicator active={sortKey === 'plPercent'} direction={sortDir} />
+                  </th>
+                  <th style={{ padding: '0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {positions.map((position) => {
+                {sortedPositions.map((position) => {
                   const plPercent = calculateUnrealizedPLPercent(position);
 
                   if (editingId === position.id && editingPosition) {
                     return (
                       <tr key={position.id}>
-                        <td colSpan={9} style={{ padding: '1rem' }}>
+                        <td colSpan={9} style={{ padding: '0.5rem' }}>
                           <h4 style={{ marginBottom: '0.5rem' }}>Edit Position</h4>
                           <PositionForm
                             portfolioId={portfolioId}
@@ -132,51 +238,51 @@ export const PositionList = ({ portfolioId, positions, onDeletePosition }: Posit
                   }
 
                   return (
-                    <tr key={position.id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>{position.ticker}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>{Math.round(position.shares)}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(position.averageCost)}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(position.costBasis)}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>
+                    <tr key={position.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                      <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{position.ticker}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{Math.round(position.shares)}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>
                         {position.currentPrice ? formatCurrency(position.currentPrice) : '-'}
                       </td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>
-                        {position.marketValue ? formatCurrency(position.marketValue) : '-'}
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrency(position.averageCost)}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>{formatCurrencyNoDecimals(position.costBasis)}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                        {position.marketValue ? formatCurrencyNoDecimals(position.marketValue) : '-'}
                       </td>
                       <td style={{
-                        padding: '1rem',
+                        padding: '0.5rem',
                         textAlign: 'right',
                         fontWeight: 'bold',
                         color: (position.unrealizedPL || 0) >= 0 ? '#28a745' : '#dc3545'
                       }}>
                         {position.unrealizedPL ? (
                           <>
-                            {position.unrealizedPL >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPL)}
+                            {position.unrealizedPL >= 0 ? '+' : ''}{formatCurrencyNoDecimals(position.unrealizedPL)}
                           </>
                         ) : '-'}
                       </td>
                       <td style={{
-                        padding: '1rem',
+                        padding: '0.5rem',
                         textAlign: 'right',
                         fontWeight: 'bold',
                         color: (plPercent || 0) >= 0 ? '#28a745' : '#dc3545'
                       }}>
                         {plPercent !== undefined ? (
-                          <>{plPercent >= 0 ? '+' : ''}{plPercent.toFixed(2)}%</>
+                          <>{plPercent >= 0 ? '+' : ''}{plPercent.toFixed(1)}%</>
                         ) : '-'}
                       </td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                             onClick={() => setEditingId(position.id)}
                           >
                             Edit
                           </button>
                           <button
                             className="btn btn-danger"
-                            style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                             onClick={() => handleDelete(position.id, position.ticker)}
                           >
                             Delete

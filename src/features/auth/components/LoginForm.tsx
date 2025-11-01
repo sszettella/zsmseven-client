@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useLogin } from '../hooks/useAuth';
 import { LoginCredentials } from '@/types/auth';
 import { Footer } from '@/shared/components/Footer/Footer';
+import logo from '@/assets/images/zsm-properties-logo.svg';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -41,7 +42,9 @@ export const LoginForm = () => {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ maxWidth: '400px', width: '100%', padding: '20px' }}>
           <div className="card">
-            <h2 style={{ marginBottom: '1.5rem' }}>Login to ZSM7</h2>
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              <img src={logo} alt="ZSM Properties" style={{ maxWidth: '100%', width: '100%', height: 'auto' }} />
+            </div>
 
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="form-group">
