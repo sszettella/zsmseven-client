@@ -74,3 +74,13 @@ export const useDeletePortfolio = () => {
     },
   });
 };
+
+export const usePortfolioAnalysis = (id: string, includeDetails: boolean = false) => {
+  return useQuery({
+    queryKey: ['portfolio', id, 'analysis', includeDetails],
+    queryFn: () => portfoliosService.getAnalysis(id, includeDetails),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes since analysis doesn't change frequently
+    retry: false, // Don't retry on 404 - analysis may not exist yet
+  });
+};

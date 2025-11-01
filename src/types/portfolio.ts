@@ -71,3 +71,38 @@ export interface PortfolioSummary {
   metrics: PortfolioMetrics;
   associatedTrades?: AssociatedTradesSummary;
 }
+
+// Portfolio analysis data structure
+export interface PositionOpportunity {
+  ticker: string;
+  opportunityScore: number; // -10 to 10
+  reasoning?: string;
+  weight_percent?: number;
+  pl_percent?: number;
+}
+
+export interface PortfolioAnalysis {
+  portfolioId: string;
+  timestamp: string;
+  portfolioName: string;
+  model: string;
+  dataAsOf: string;
+  analysis?: string;
+  prompt?: string;
+  parsed_data?: {
+    summary?: {
+      total_value?: number;
+      total_pl?: number;
+      pl_percentage?: number;
+      risk_level?: string;
+    };
+    top_positions?: Array<{
+      ticker: string;
+      weight_percent?: number;
+      pl_percent?: number;
+    }>;
+    recommendations?: string[];
+    opportunities?: PositionOpportunity[];
+  };
+  error?: string;
+}

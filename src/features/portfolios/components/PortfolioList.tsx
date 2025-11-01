@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolios, useDeletePortfolio, useSetDefaultPortfolio } from '../hooks/usePortfolios';
 import { usePortfolioPositions } from '../hooks/usePositions';
@@ -79,14 +79,13 @@ const AggregatePortfolioSummary = ({ portfolioIds }: { portfolioIds: string[] })
 
 // Helper component that actually does the calculation
 const AggregateCalculator = ({ portfolioIds }: { portfolioIds: string[] }) => {
-  const [stats, setStats] = useState({ positions: 0, value: 0, loaded: 0 });
-
   const positionsData = portfolioIds.map(id => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return usePortfolioPositions(id);
   });
 
-  useEffect(() => {
+  // Use useMemo to calculate stats only when the actual data changes
+  const stats = useMemo(() => {
     let totalPositions = 0;
     let totalValue = 0;
     let loadedCount = 0;
@@ -99,8 +98,8 @@ const AggregateCalculator = ({ portfolioIds }: { portfolioIds: string[] }) => {
       }
     });
 
-    setStats({ positions: totalPositions, value: totalValue, loaded: loadedCount });
-  }, [positionsData]);
+    return { positions: totalPositions, value: totalValue, loaded: loadedCount };
+  }, [positionsData.map(pd => `${pd.isLoading}-${pd.data?.length}-${pd.data?.reduce((s, p) => s + (p.marketValue || p.costBasis), 0)}`).join(',')]);
 
   const isLoading = stats.loaded < portfolioIds.length;
 
